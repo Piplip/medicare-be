@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Component
 @RequiredArgsConstructor
 public class AccountEventListener {
@@ -15,7 +17,9 @@ public class AccountEventListener {
     @EventListener
     public void handleAccountEvent(AccountEvent accountEvent){
         switch (accountEvent.getEventType()){
-            case REGISTRATION -> emailService.sendRegistrationEmail((String) accountEvent.getData().get("token"), (String) accountEvent.getData().get("email"));
+            case REGISTRATION -> emailService.sendRegistrationEmail((String) accountEvent.getData().get("token")
+                    , (String) accountEvent.getData().get("email")
+                    , (LocalDateTime) accountEvent.getData().get("expirationTime"));
         }
     }
 }
