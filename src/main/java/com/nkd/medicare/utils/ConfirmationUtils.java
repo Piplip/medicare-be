@@ -1,5 +1,7 @@
 package com.nkd.medicare.utils;
 
+import com.nkd.medicare.tables.records.ConfirmationRecord;
+
 import java.time.LocalDateTime;
 
 public class ConfirmationUtils {
@@ -17,5 +19,9 @@ public class ConfirmationUtils {
             token.append(TOKEN_POOL.charAt((int) (Math.random() * TOKEN_POOL.length())));
         }
         return token.toString();
+    }
+
+    public static boolean checkTokenExpired(LocalDateTime expiredTime){
+        return LocalDateTime.now().isAfter(expiredTime);
     }
 }
