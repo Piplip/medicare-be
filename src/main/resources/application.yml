@@ -1,4 +1,6 @@
 spring:
+  client:
+    port: ${CLIENT_PORT}
   profiles:
     active: ${ACTIVE_PROFILE:dev}
   application:
@@ -34,7 +36,8 @@ spring:
             enable: true
             required: true
     verify:
-      host: ${VERIFY_EMAIL_HOST}
+      host: ${VERIFY_EMAIL_HOST:8080}
+
 server:
   port: ${CONTAINER_PORT:8080}
   error:
