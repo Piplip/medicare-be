@@ -2,11 +2,14 @@ package com.nkd.medicare.utils;
 
 import com.nkd.medicare.exception.ApiException;
 
+import java.time.LocalDateTime;
+
 public class EmailUtils {
-    public static String getRegistrationMessage(String email, String host, String token){
+    public static String getRegistrationMessage(String email, String host, String token, LocalDateTime expiredTime){
         return "Hello " + email + ",\n\n" +
                 "Thank you for registering with Medicare. Please click the link below to activate your account.\n\n" +
                 getVerificationUrl(host, token) + "\n\n" +
+                "<p style='color: red;'>IMPORTANT NOTE: this link will expire on " + expiredTime + ".</p>\n\n" +
                 "If you did not register with Medicare, please ignore this email.\n\n" +
                 "Regards,\n" +
                 "Medicare Team";

@@ -2,11 +2,15 @@ package com.nkd.medicare.service.impl;
 
 import com.nkd.medicare.service.EmailService;
 import com.nkd.medicare.utils.EmailUtils;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -21,22 +25,27 @@ public class EmailServiceImpl implements EmailService {
     private String host;
 
     @Override
-    public void sendRegistrationEmail(String token, String email) {
+    public void sendRegistrationEmail(String token, String email, LocalDateTime expiredTime) {
         try {
-            sendEmail(email, EmailUtils.getRegistrationMessage(email, host, token));
+            sendEmail(email, EmailUtils.getRegistrationMessage(email, host, token, expiredTime));
         }catch(Exception e){
             EmailUtils.handleEmailException(e);
         }
     }
 
     private void sendEmail(String toEmail, String content) {
-        SimpleMailMessage message = new SimpleMailMessage();
+        try {
+            MimeMessage message = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
-        message.setSubject(NEW_ACCOUNT_VERIFICATION);
-        message.setFrom(fromEmail);
-        message.setTo(toEmail);
-        message.setText(content);
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject(NEW_ACCOUNT_VERIFICATION);
+            helper.setText(content, true);
 
-        javaMailSender.send(message);
+            javaMailSender.send(message);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Error sending email");
+        }
     }
 }
