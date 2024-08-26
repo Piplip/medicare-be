@@ -3,13 +3,11 @@ package com.nkd.medicare.service.impl;
 import com.nkd.medicare.domain.Credential;
 import com.nkd.medicare.enumeration.EventType;
 import com.nkd.medicare.enums.AccountAccountRole;
-import com.nkd.medicare.enums.ConfirmationTokenType;
 import com.nkd.medicare.event.AccountEvent;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
 import com.nkd.medicare.exception.ExpiredTokenException;
 import com.nkd.medicare.service.AccountService;
-import com.nkd.medicare.tables.Confirmation;
 import com.nkd.medicare.tables.records.AccountRecord;
 import com.nkd.medicare.tables.records.ConfirmationRecord;
 import com.nkd.medicare.utils.ConfirmationUtils;
@@ -20,7 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,8 +38,6 @@ public class AccountServiceImpl implements AccountService {
             throw new DuplicateEmailException();
         }
 
-        // TODO: Handle the case where email exists
-
         AccountRecord newAccount = new AccountRecord();
         newAccount.setAccountEmail(credential.getEmail());
         newAccount.setAccountPassword(encoder.encode(credential.getPassword()));
@@ -54,23 +49,7 @@ public class AccountServiceImpl implements AccountService {
         int accountID = Objects.requireNonNull(dslContext.insertInto(ACCOUNT).set(newAccount)
                 .returning(ACCOUNT.ACCOUNT_ID).fetchOne()).getAccountId();
 
-        ConfirmationRecord newConfirmation = new ConfirmationRecord();
-        newConfirmation.setAccountId(accountID);
-        newConfirmation.setTokenType(ConfirmationTokenType.EMAIL);
-
-        LocalDateTime expiredTime = ConfirmationUtils.calculateExpiredTime();
-        newConfirmation.setConfirmationExpiredTime(expiredTime);
-
-        String token = ConfirmationUtils.generateToken();
-        newConfirmation.setToken(token);
-
-        dslContext.insertInto(CONFIRMATION).set(newConfirmation).execute();
-
-        AccountEvent signUpEvent = new AccountEvent();
-        signUpEvent.setEventType(EventType.REGISTRATION);
-        signUpEvent.setData(Map.of("token", token, "email", credential.getEmail(), "expirationTime", expiredTime));
-
-        publisher.publishEvent(signUpEvent);
+        generateAndSendConfirmation(accountID, credential.getEmail(), EventType.REGISTRATION);
     }
 
     @Override
@@ -85,22 +64,37 @@ public class AccountServiceImpl implements AccountService {
 
     @Transactional
     @Override
-    public void activateAccount(String token) {
+    public void activateAccount(String token, String email) {
+        AccountRecord accountRecord = dslContext.selectFrom(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                .fetchOne();
+
+        if(accountRecord == null){
+            throw new ApiException("ERR-1001"); // ERR-1001 : Account not found
+        }
+        if(accountRecord.getIsEnable() == 1){
+            throw new ApiException("ERR-1002"); // ERR-1002 : Account already activated
+        }
+
         ConfirmationRecord confirmationRecord = dslContext.selectFrom(CONFIRMATION)
                 .where(CONFIRMATION.TOKEN.eq(token))
-                .fetchAny();
+                .fetchOne();
 
-        if(confirmationRecord != null){
-            if(ConfirmationUtils.checkTokenExpired(confirmationRecord.getConfirmationExpiredTime())){
-                throw new ExpiredTokenException();
-            }
+        if(confirmationRecord == null){
+            throw new ApiException("Invalid or missing token");
+        }
+
+        if(ConfirmationUtils.checkTokenExpired(confirmationRecord.getConfirmationExpiredTime())){
             dslContext.delete(CONFIRMATION)
                     .where(CONFIRMATION.TOKEN.eq(token))
                     .execute();
+
+            throw new ExpiredTokenException("EXPIRED-" + confirmationRecord.getAccountId()); // EXPIRED-{accountID} : Token expired
         }
-        else{
-            throw new ApiException("Invalid or missing token");
-        }
+
+        dslContext.delete(CONFIRMATION)
+                .where(CONFIRMATION.TOKEN.eq(token))
+                .execute();
 
         dslContext.update(ACCOUNT)
                 .set(ACCOUNT.IS_ENABLE, (byte)1)
@@ -108,7 +102,40 @@ public class AccountServiceImpl implements AccountService {
                 .execute();
     }
 
+    @Override
+    public void renewConfirmationToken(Integer accountID) {
+        AccountRecord accountRecord = dslContext.selectFrom(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_ID.eq(accountID))
+                .fetchOne();
+
+        if(accountRecord == null){
+            throw new ApiException("Account not found");
+        }
+        else if(accountRecord.getIsEnable() == 1){
+            throw new ApiException("Account already activated");
+        }
+
+        generateAndSendConfirmation(accountID, accountRecord.getAccountEmail(), EventType.RENEW_TOKEN);
+    }
+
     private boolean checkEmailExist(String email){
         return dslContext.fetchExists(ACCOUNT, ACCOUNT.ACCOUNT_EMAIL.eq(email));
     }
+
+    private void generateAndSendConfirmation(Integer accountID, String email, EventType eventType) {
+        ConfirmationRecord newConfirmation = ConfirmationUtils.generateConfirmationRecord(accountID);
+
+        dslContext.insertInto(CONFIRMATION).set(newConfirmation).execute();
+
+        AccountEvent signUpEvent = new AccountEvent();
+        signUpEvent.setEventType(eventType);
+        signUpEvent.setData(Map.of("token", newConfirmation.getToken(),
+                "email", email, "expirationTime", newConfirmation.getConfirmationExpiredTime()));
+
+        publisher.publishEvent(signUpEvent);
+    }
 }
+
+// TODO : Implement a prevent multiple renew token for server (Renew can only make once per a certain duration)
+// TODO: Implement login functionality
+
