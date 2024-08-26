@@ -20,6 +20,9 @@ public class AccountEventListener {
             case REGISTRATION -> emailService.sendRegistrationEmail((String) accountEvent.getData().get("token")
                     , (String) accountEvent.getData().get("email")
                     , (LocalDateTime) accountEvent.getData().get("expirationTime"));
+            case RENEW_TOKEN -> emailService.sendRenewTokenEmail((String) accountEvent.getData().get("token")
+                    , (String) accountEvent.getData().get("email")
+                    , (LocalDateTime) accountEvent.getData().get("expirationTime"));
         }
     }
 }
