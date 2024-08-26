@@ -10,7 +10,7 @@ ACTIVE_PROFILE: dev
 EMAIL_HOST: smtp.gmail.com
 EMAIL_PORT: 587
 EMAIL_USERNAME: nguyenkhanhdu956@gmail.com
-EMAIL_PASSWORD: qevc rkep axxq ktbs
+EMAIL_PASSWORD: egfl kthz udxk awbf
 VERIFY_EMAIL_HOST: http://localhost:${CONTAINER_PORT}
 
 #Port
