@@ -4,4 +4,5 @@ import java.time.LocalDateTime;
 
 public interface EmailService {
     void sendRegistrationEmail(String token, String email, LocalDateTime expiredTime);
+    void sendRenewTokenEmail(String token, String email, LocalDateTime expirationTime);
 }
