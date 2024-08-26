@@ -19,7 +19,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(httpRequest -> {
                     httpRequest
                             .requestMatchers("/api/user/login", "/api/user/sign-up",
-                                    "/api/user/verify", "ws/**")
+                                    "/api/user/token/**", "ws/**")
                             .permitAll();
                     httpRequest.anyRequest().authenticated();
                 })
