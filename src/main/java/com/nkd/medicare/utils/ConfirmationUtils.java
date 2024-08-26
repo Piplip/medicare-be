@@ -1,19 +1,20 @@
 package com.nkd.medicare.utils;
 
+import com.nkd.medicare.enums.ConfirmationTokenType;
 import com.nkd.medicare.tables.records.ConfirmationRecord;
 
 import java.time.LocalDateTime;
 
 public class ConfirmationUtils {
 
-    private static final int DEFAULT_EXPIRED_TIME = 15;
+    public static final int DEFAULT_EXPIRED_TIME = 1;
     private static final String TOKEN_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-    public static LocalDateTime calculateExpiredTime(){
-        return LocalDateTime.now().plusMinutes(15);
+    private static LocalDateTime calculateExpiredTime(){
+        return LocalDateTime.now().plusMinutes(DEFAULT_EXPIRED_TIME);
     }
 
-    public static String generateToken(){
+    private static String generateToken(){
         StringBuilder token = new StringBuilder();
         for(int i = 0; i < 20; i++){
             token.append(TOKEN_POOL.charAt((int) (Math.random() * TOKEN_POOL.length())));
@@ -23,5 +24,19 @@ public class ConfirmationUtils {
 
     public static boolean checkTokenExpired(LocalDateTime expiredTime){
         return LocalDateTime.now().isAfter(expiredTime);
+    }
+
+    public static ConfirmationRecord generateConfirmationRecord(Integer accountID){
+        ConfirmationRecord newConfirmation = new ConfirmationRecord();
+        newConfirmation.setAccountId(accountID);
+        newConfirmation.setTokenType(ConfirmationTokenType.EMAIL);
+
+        LocalDateTime expiredTime = calculateExpiredTime();
+        newConfirmation.setConfirmationExpiredTime(expiredTime);
+
+        String token = generateToken();
+        newConfirmation.setToken(token);
+
+        return newConfirmation;
     }
 }
