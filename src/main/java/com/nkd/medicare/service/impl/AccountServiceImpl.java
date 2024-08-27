@@ -1,16 +1,17 @@
 package com.nkd.medicare.service.impl;
 
 import com.nkd.medicare.domain.Credential;
+import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.enumeration.EventType;
 import com.nkd.medicare.enums.AccountAccountRole;
 import com.nkd.medicare.event.AccountEvent;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
-import com.nkd.medicare.exception.ExpiredTokenException;
 import com.nkd.medicare.service.AccountService;
 import com.nkd.medicare.tables.records.AccountRecord;
 import com.nkd.medicare.tables.records.ConfirmationRecord;
 import com.nkd.medicare.utils.ConfirmationUtils;
+import com.nkd.medicare.utils.SessionUtils;
 import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
 import org.springframework.context.ApplicationEventPublisher;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Objects;
 
@@ -31,6 +33,7 @@ public class AccountServiceImpl implements AccountService {
     private final PasswordEncoder encoder;
     private final DSLContext dslContext;
     private final ApplicationEventPublisher publisher;
+    private final RedisService redisService;
 
     @Override
     public void createAccount(Credential credential) {
@@ -62,7 +65,7 @@ public class AccountServiceImpl implements AccountService {
 
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     @Override
     public void activateAccount(String token, String email) {
         AccountRecord accountRecord = dslContext.selectFrom(ACCOUNT)
@@ -81,24 +84,25 @@ public class AccountServiceImpl implements AccountService {
                 .fetchOne();
 
         if(confirmationRecord == null){
-            throw new ApiException("Invalid or missing token");
+            throw new ApiException("ERR-1003"); // ERR-1003 : Invalid token
         }
 
-        if(ConfirmationUtils.checkTokenExpired(confirmationRecord.getConfirmationExpiredTime())){
+        boolean isTokenExpired = ConfirmationUtils.checkTokenExpired(confirmationRecord.getConfirmationExpiredTime());
+
+        if(isTokenExpired){
             dslContext.delete(CONFIRMATION)
                     .where(CONFIRMATION.TOKEN.eq(token))
                     .execute();
-
-            throw new ExpiredTokenException("EXPIRED-" + confirmationRecord.getAccountId()); // EXPIRED-{accountID} : Token expired
+            throw new ApiException("EXPIRED-" + confirmationRecord.getAccountId()); // EXPIRED-{accountID} : Token expired
         }
-
-        dslContext.delete(CONFIRMATION)
-                .where(CONFIRMATION.TOKEN.eq(token))
-                .execute();
 
         dslContext.update(ACCOUNT)
                 .set(ACCOUNT.IS_ENABLE, (byte)1)
                 .where(ACCOUNT.ACCOUNT_ID.eq(confirmationRecord.getAccountId()))
+                .execute();
+
+        dslContext.delete(CONFIRMATION)
+                .where(CONFIRMATION.TOKEN.eq(token))
                 .execute();
     }
 
@@ -116,6 +120,52 @@ public class AccountServiceImpl implements AccountService {
         }
 
         generateAndSendConfirmation(accountID, accountRecord.getAccountEmail(), EventType.RENEW_TOKEN);
+    }
+
+    @Override
+    public Credential login(Credential credential) {
+        AccountRecord accountRecord = dslContext.selectFrom(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(credential.getEmail()))
+                .fetchOne();
+
+        if(accountRecord == null){
+            throw new ApiException("Not found an account with email: " + credential.getEmail());
+        }
+        if(accountRecord.getIsEnable() == 0){
+            throw new ApiException("Account is not activated! Please head to your email to activate your account");
+        }
+        if(!encoder.matches(credential.getPassword(), accountRecord.getAccountPassword())){
+            throw new ApiException("Invalid password for account: " + credential.getEmail());
+        }
+
+        String sessionID = SessionUtils.generateSessionToken();
+        Session newSession = SessionUtils.generateLoginSession(credential.getEmail(), sessionID, accountRecord.getAccountRole());
+        redisService.save(sessionID, newSession);
+
+        credential.setSessionID(sessionID);
+        return credential;
+    }
+
+    @Override
+    public Credential loginWithSessionID(Credential credential) {
+        String sessionID = credential.getSessionID();
+        Session currentSession = redisService.get(sessionID);
+
+        if(currentSession == null){
+            throw new ApiException("Invalid session! Please login again");
+        }
+        if(LocalDateTime.now().isAfter(currentSession.getExpirationTime())){
+            redisService.delete(sessionID);
+            throw new ApiException("Session expired! Please login again");
+        }
+
+        var now = LocalDateTime.now();
+        currentSession.setLastAccessTime(now);
+        currentSession.setExpirationTime(now.plusMinutes(SessionUtils.DEFAULT_SESSION_EXPIRED_TIME));
+        redisService.save(sessionID, currentSession);
+
+        credential.setEmail(currentSession.getEmail());
+        return credential;
     }
 
     private boolean checkEmailExist(String email){
@@ -136,6 +186,4 @@ public class AccountServiceImpl implements AccountService {
     }
 }
 
-// TODO : Implement a prevent multiple renew token for server (Renew can only make once per a certain duration)
-// TODO: Implement login functionality
-
+// TODO : Logout
