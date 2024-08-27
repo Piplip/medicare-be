@@ -17,10 +17,10 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
                 .authorizeHttpRequests(httpRequest -> {
-                    httpRequest
-                            .requestMatchers("/api/user/login", "/api/user/sign-up",
+                    httpRequest.requestMatchers("/api/user/login", "/api/user/sign-up",
                                     "/api/user/token/**", "ws/**")
                             .permitAll();
+                    httpRequest.requestMatchers("/api/user/**").hasRole("USER");
                     httpRequest.anyRequest().authenticated();
                 })
                 .cors(AbstractHttpConfigurer::disable)
