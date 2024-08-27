@@ -8,4 +8,6 @@ public interface AccountService {
     void updatePassword(String email, String password);
     void activateAccount(String token, String email);
     void renewConfirmationToken(Integer accountID);
+    Credential login(Credential credential);
+    Credential loginWithSessionID(Credential credential);
 }
