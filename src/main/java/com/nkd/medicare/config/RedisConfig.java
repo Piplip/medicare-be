@@ -1,5 +1,7 @@
 package com.nkd.medicare.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.nkd.medicare.domain.Session;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,16 +15,21 @@ public class RedisConfig {
 
     @Bean
     public RedisTemplate<String, Session> redisTemplate(RedisConnectionFactory connectionFactory){
-        RedisTemplate<String, Session> redisTemplate = new RedisTemplate<>();
+        RedisTemplate<String, Session> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
 
-        redisTemplate.setConnectionFactory(connectionFactory);
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
 
-        redisTemplate.afterPropertiesSet();
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(mapper);
 
-        return redisTemplate;
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(serializer);
+        template.setHashValueSerializer(serializer);
+
+        template.afterPropertiesSet();
+
+        return template;
     }
 }
