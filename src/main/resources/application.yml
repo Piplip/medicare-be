@@ -5,6 +5,11 @@ spring:
     active: ${ACTIVE_PROFILE:dev}
   application:
     name: medicare
+  data:
+    redis:
+      host: redis-16806.c302.asia-northeast1-1.gce.redns.redis-cloud.com
+      port: 16806
+      password: URMRVHZau0HchoxCPGejcvTTf2idJEPq
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/medicare
