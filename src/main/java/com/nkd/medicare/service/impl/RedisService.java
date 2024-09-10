@@ -22,4 +22,12 @@ public class RedisService {
     public void delete(String key) {
         redisTemplate.delete(key);
     }
+
+    public boolean hasKey(String key){
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+    }
+
+    public void update(String key, Session session){
+        redisTemplate.opsForValue().set(key, session);
+    }
 }
