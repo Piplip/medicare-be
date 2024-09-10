@@ -1,6 +1,7 @@
 package com.nkd.medicare.controller;
 
 import com.nkd.medicare.domain.Credential;
+import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
 import com.nkd.medicare.service.AccountService;
@@ -34,24 +35,25 @@ public class AccountController {
 
     @PostMapping("/login")
     public ResponseEntity<?> handleLogin(@RequestBody Credential credential){
-        Credential sendBackCredential;
+        Session sendbackSession;
 
         if(credential.getSessionID() != null){
             try{
-                sendBackCredential = accountService.loginWithSessionID(credential);
+                sendbackSession = accountService.loginWithSessionID(credential);
             } catch (ApiException e){
                 return ResponseEntity.badRequest().body(e.getMessage());
             }
-            return ResponseEntity.ok(sendBackCredential);
+            return ResponseEntity.ok(sendbackSession);
         }
 
         try {
-            sendBackCredential = accountService.login(credential);
+            System.out.println("Login with credential");
+            sendbackSession = accountService.login(credential);
         } catch (ApiException e){
             return ResponseEntity.badRequest().body(e.getMessage());
         }
 
-        return ResponseEntity.ok(sendBackCredential);
+        return ResponseEntity.ok(sendbackSession);
     }
 
     @GetMapping("/token/verify")
