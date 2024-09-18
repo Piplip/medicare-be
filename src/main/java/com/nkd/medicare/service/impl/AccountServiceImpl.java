@@ -159,8 +159,8 @@ public class AccountServiceImpl implements AccountService {
         String sessionID = SessionUtils.generateSessionToken();
         Session newSession = SessionUtils.generateLoginSession(credential.getEmail(), sessionID, accountRecord.getAccountRole());
         PersonRecord personRecord = context.selectFrom(PERSON)
-                        .where(PERSON.PERSON_ID.eq(accountRecord.getOwnerId()))
-                        .fetchOne();
+                .where(PERSON.PERSON_ID.eq(accountRecord.getOwnerId()))
+                .fetchOne();
         assert personRecord != null;
         newSession.setFirstName(personRecord.getFirstName());
         newSession.setLastName(personRecord.getLastName());

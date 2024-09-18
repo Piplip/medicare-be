@@ -1,6 +1,6 @@
 #Database
 MYSQL_USERNAME: root
-MYSQL_PASSWORD: somenewpassword123
+MYSQL_PASSWORD: Crossfire123
 
 #Server
 CONTAINER_PORT: 8080
@@ -15,3 +15,11 @@ VERIFY_EMAIL_HOST: http://localhost:${CONTAINER_PORT}
 
 #Port
 CLIENT_PORT: 5173
+
+PAY_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+TMN_CODE: H6C4OH4A
+SECRET_KEY: 65H312OPIOELDF6XORMCKXYKLF4NJX6G
+RETURN_URL: http://localhost:8080/api/user/appointment/vn-pay-callback
+VERSION: 2.1.0
+COMMAND: pay
+ORDER_TYPE: 270000
