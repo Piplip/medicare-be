@@ -1,4 +1,4 @@
-package com.nkd.medicare.config;
+package com.nkd.medicare.security;
 
 import com.nkd.medicare.service.impl.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET","POST", "PUT", "DELETE"));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST", "PUT", "PATCH", "DELETE"));
         configuration.setAllowCredentials(true);
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -43,9 +43,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
                 .authorizeHttpRequests(httpRequest -> {
-                    httpRequest.requestMatchers("/api/user/login", "/api/user/sign-up", "/api/user/staff",
-                                    "/api/user/token/**", "ws/**")
-                            .permitAll();
+//                    httpRequest.requestMatchers("/api/user/login", "/api/user/sign-up", "/api/user/staff",
+//                                    "/api/user/token/**", "ws/**")
+//                            .permitAll();
                     httpRequest.anyRequest().permitAll();
                 })
                 .sessionManagement(session -> session.sessionFixation().none())

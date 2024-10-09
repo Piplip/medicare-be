@@ -19,9 +19,10 @@ public class SessionUtils {
         return token.toString();
     }
 
-    public static Session generateLoginSession(String email, String sessionID, AccountAccountRole accountRole){
+    public static Session generateLoginSession(String email, String sessionID, AccountAccountRole accountRole, Integer accountID){
         Session newSession = new Session();
 
+        newSession.setAccountID(accountID);
         newSession.setEmail(email);
         newSession.setSessionID(sessionID);
         newSession.setOnline(true);

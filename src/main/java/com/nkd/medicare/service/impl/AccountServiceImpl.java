@@ -1,6 +1,5 @@
 package com.nkd.medicare.service.impl;
 
-import com.nkd.medicare.controller.UserController;
 import com.nkd.medicare.domain.Credential;
 import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.enumeration.EventType;
@@ -9,9 +8,8 @@ import com.nkd.medicare.event.AccountEvent;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
 import com.nkd.medicare.service.AccountService;
-import com.nkd.medicare.tables.records.AccountRecord;
-import com.nkd.medicare.tables.records.ConfirmationRecord;
-import com.nkd.medicare.tables.records.PersonRecord;
+import com.nkd.medicare.service.cccd.ScanCCCD;
+import com.nkd.medicare.tables.records.*;
 import com.nkd.medicare.utils.ConfirmationUtils;
 import com.nkd.medicare.utils.SessionUtils;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +17,6 @@ import org.jooq.DSLContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +36,6 @@ public class AccountServiceImpl implements AccountService {
     private final ApplicationEventPublisher publisher;
     private final RedisService redisService;
     private final AuthenticationManager authenticationManager;
-    private final UserController userController;
 
     @Override
     public void createAccount(Credential credential) {
@@ -74,7 +69,7 @@ public class AccountServiceImpl implements AccountService {
 
     @Transactional(noRollbackFor = ApiException.class)
     @Override
-    public void activateAccount(String token, String email) {
+    public String activateAccount(String token, String email) {
         AccountRecord accountRecord = context.selectFrom(ACCOUNT)
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
                 .fetchOne();
@@ -111,6 +106,8 @@ public class AccountServiceImpl implements AccountService {
         context.delete(CONFIRMATION)
                 .where(CONFIRMATION.TOKEN.eq(token))
                 .execute();
+
+        return accountRecord.getAccountId().toString();
     }
 
     @Override
@@ -158,10 +155,18 @@ public class AccountServiceImpl implements AccountService {
         }
 
         String sessionID = SessionUtils.generateSessionToken();
-        Session newSession = SessionUtils.generateLoginSession(credential.getEmail(), sessionID, accountRecord.getAccountRole());
+        Session newSession = SessionUtils.generateLoginSession(credential.getEmail(), sessionID,
+                accountRecord.getAccountRole(), accountRecord.getAccountId());
+
+        Integer personID = context.select(PATIENT.PERSON_ID)
+                .from(PATIENT)
+                .where(PATIENT.PATIENT_ID.eq(accountRecord.getOwnerId()))
+                .fetchOneInto(Integer.class);
+
         PersonRecord personRecord = context.selectFrom(PERSON)
-                        .where(PERSON.PERSON_ID.eq(accountRecord.getOwnerId()))
+                        .where(PERSON.PERSON_ID.eq(personID))
                         .fetchOne();
+
         assert personRecord != null;
         newSession.setFirstName(personRecord.getFirstName());
         newSession.setLastName(personRecord.getLastName());
@@ -195,6 +200,45 @@ public class AccountServiceImpl implements AccountService {
         redisService.save(sessionID, currentSession);
 
         return currentSession;
+    }
+
+    @Override
+    public void checkCCCD(String accountID, String url) {
+        ScanCCCD scan = new ScanCCCD();
+        scan.scan(url);
+
+        AddressRecord address = new AddressRecord();
+        address.setCity(scan.getCity());
+        address.setDistrict(scan.getDistrict());
+        address.setStreet(scan.getStreet());
+        if(scan.getHouseNumber() != null) address.setHouseNumber(scan.getHouseNumber());
+
+        int addressID = Objects.requireNonNull(context.insertInto(ADDRESS).set(address)
+                .returning(ADDRESS.ADDRESS_ID).fetchOne()).getAddressId();
+
+        PersonRecord person = new PersonRecord();
+        person.setFirstName(scan.getFirstname());
+        person.setLastName(scan.getLastname());
+        person.setDateOfBirth(scan.getBirthday());
+        person.setPrimaryLanguage("Vietnamese");
+        person.setGender(scan.getGender());
+        person.setAddressId(addressID);
+
+        int personID = Objects.requireNonNull(context.insertInto(PERSON).set(person)
+                .returning(PERSON.PERSON_ID).fetchOne()).getPersonId();
+
+        PatientRecord patient = new PatientRecord();
+        patient.setPersonId(personID);
+        patient.setLastInfoUpdate(LocalDateTime.now());
+
+        int patientID = Objects.requireNonNull(context.insertInto(PATIENT).set(patient)
+                .returning(PATIENT.PATIENT_ID).fetchOne()).getPatientId();
+
+        context.update(ACCOUNT)
+                .set(ACCOUNT.OWNER_ID, patientID)
+                .set(ACCOUNT.ID_CARD_NUMBER, scan.getCccd())
+                .where(ACCOUNT.ACCOUNT_ID.eq(Integer.parseInt(accountID)))
+                .execute();
     }
 
     private boolean checkEmailExist(String email){
