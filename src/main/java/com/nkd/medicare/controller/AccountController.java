@@ -58,8 +58,9 @@ public class AccountController {
 
     @GetMapping("/token/verify")
     public ResponseEntity<?> activateAccount(@RequestParam(value = "token") String token, @RequestParam(value = "email") String email){
+        String accountID;
         try {
-            accountService.activateAccount(token, email);
+            accountID = accountService.activateAccount(token, email);
         } catch (ApiException e){
             String errorUrl = "http://localhost:" + clientPort + "/verify/fail?error=" + e.getMessage();
             return ResponseEntity.status(HttpStatus.FOUND)
@@ -67,7 +68,7 @@ public class AccountController {
                     .build();
         }
 
-        String successUrl = "http://localhost:" + clientPort + "/verify/success";
+        String successUrl = "http://localhost:" + clientPort + "/verify/success?" + "accountID=" + accountID;
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(java.net.URI.create(successUrl))
                 .build();
@@ -81,5 +82,17 @@ public class AccountController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
         return ResponseEntity.ok("New token has been generated and send to your email! Follow the instructions in the mail to activate your account");
+    }
+
+    @PostMapping("/check-identity")
+    public ResponseEntity<?> checkCCCD(@RequestParam(value = "accountID") String accountID, @RequestParam(value = "url") String url){
+        System.out.println("image url: " + url);
+        try {
+            accountService.checkCCCD(accountID, url);
+        }
+        catch(ApiException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+        return ResponseEntity.ok("Identity have been authenticated");
     }
 }
