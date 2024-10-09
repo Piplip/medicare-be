@@ -1,6 +1,5 @@
 package com.nkd.medicare.domain;
 
-import jakarta.annotation.Nonnull;
 import lombok.*;
 
 import java.time.LocalDate;
