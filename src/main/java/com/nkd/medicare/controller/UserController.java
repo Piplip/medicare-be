@@ -1,6 +1,7 @@
 package com.nkd.medicare.controller;
 
 import com.nkd.medicare.domain.AppointmentDTO;
+import com.nkd.medicare.domain.FeedbackDTO;
 import com.nkd.medicare.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,8 @@ public class UserController {
     @GetMapping("/staff")
     public ResponseEntity<?> getStaffData(@RequestParam("name") String name, @RequestParam("department") String department,
                                           @RequestParam("primary-language") String primaryLanguage, @RequestParam("specialization") String specialization,
-                                          @RequestParam("gender") String gender, @RequestParam("page-size") String pageSize, @RequestParam("page-number") String pageNumber){
+                                          @RequestParam("gender") String gender, @RequestParam("page-size") String pageSize,
+                                          @RequestParam("page-number") String pageNumber){
         return ResponseEntity.ok(userService.findDoctor(name, department, primaryLanguage, specialization, gender, pageSize, pageNumber));
     }
 
@@ -27,7 +29,23 @@ public class UserController {
 
     @PostMapping("/appointment")
     public ResponseEntity<?> makeAppointment(@RequestBody AppointmentDTO appointmentDTO){
-        var msg = userService.makeAppointment(appointmentDTO);
+        String msg = userService.makeAppointment(appointmentDTO);
         return ResponseEntity.ok(msg);
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getUserProfile(@RequestParam("email") String email){
+        return ResponseEntity.ok(userService.getUserProfile(email));
+    }
+
+    @GetMapping("/appointments")
+    public ResponseEntity<?> getAppointmentList(@RequestParam("email") String email){
+        return ResponseEntity.ok(userService.getAppointmentList(email));
+    }
+
+    @PostMapping("/feedback")
+    public ResponseEntity<?> postFeedback(@RequestBody FeedbackDTO feedbackDTO, @RequestParam("email") String email){
+        userService.postFeedback(feedbackDTO, email);
+        return ResponseEntity.ok("Feedback posted successfully");
     }
 }

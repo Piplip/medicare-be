@@ -1,15 +1,18 @@
 package com.nkd.medicare.service.impl;
 
 import com.nkd.medicare.domain.AppointmentDTO;
+import com.nkd.medicare.domain.FeedbackDTO;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
 import com.nkd.medicare.service.UserService;
+import com.nkd.medicare.tables.records.FeedbackRecord;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 import static com.nkd.medicare.Tables.*;
@@ -39,7 +42,7 @@ public class UserServiceImpl implements UserService {
 
         return context.select(STAFF.STAFF_ID, PERSON.PERSON_ID, STAFF.STAFF_IMAGE, STAFF.DEPARTMENT_ID, PERSON.FIRST_NAME,
                         PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER, PERSON.PRIMARY_LANGUAGE, DEPARTMENT.NAME, DEPARTMENT.LOCATION, SPECIALIZATION.NAME,
-                        SPECIALIZATION.DESCRIPTION)
+                        SPECIALIZATION.DESCRIPTION, STAFF.STAFF_TYPE)
                 .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
                 .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
                 .leftJoin(STAFF_SPECIALIZATION).on(STAFF.STAFF_ID.eq(STAFF_SPECIALIZATION.STAFF_ID))
@@ -74,15 +77,19 @@ public class UserServiceImpl implements UserService {
                 .from(ACCOUNT.join(PATIENT).on(ACCOUNT.OWNER_ID.eq(PATIENT.PATIENT_ID)))
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(appointmentDTO.getPatientEmail()))
                 .fetchOneInto(Integer.class);
-
         if(patientID == null){
             return "Account not authenticated! Not found any patient associate with this account";
         }
 
-        Integer appointmentID = context.insertInto(APPOINTMENT, APPOINTMENT.PATIENT_ID, APPOINTMENT.PHYSICIAN_ID, APPOINTMENT.DATE, APPOINTMENT.TIME,
+        Integer departmentID = context.select(STAFF.DEPARTMENT_ID)
+                .from(STAFF)
+                .where(STAFF.STAFF_ID.eq(Integer.parseInt(appointmentDTO.getDoctorID())))
+                .fetchOneInto(Integer.class);
+
+        Integer appointmentID = context.insertInto(APPOINTMENT, APPOINTMENT.PATIENT_ID, APPOINTMENT.PHYSICIAN_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.DEPARTMENT_ID,
                         APPOINTMENT.REASON, APPOINTMENT.STATUS, APPOINTMENT.PHYSICIAN_REFERRED)
-                .values(patientID, Integer.parseInt(appointmentDTO.getDoctorID()), appointmentDTO.getAppointmentDate(), appointmentDTO.getAppointmentTime()
-                        , appointmentDTO.getReason(), AppointmentStatus.SCHEDULED, (byte) (appointmentDTO.getIsReferral().equals("yes") ? 1 : 0))
+                .values(patientID, Integer.parseInt(appointmentDTO.getDoctorID()), appointmentDTO.getAppointmentDate(), appointmentDTO.getAppointmentTime(), departmentID,
+                        appointmentDTO.getReason(), AppointmentStatus.SCHEDULED, (byte) (appointmentDTO.getIsReferral().equals("yes") ? 1 : 0))
                 .returningResult(APPOINTMENT.APPOINTMENT_ID)
                 .fetchOneInto(Integer.class);
 
@@ -93,6 +100,52 @@ public class UserServiceImpl implements UserService {
                     .execute();
         }
 
-        return "Appointment has been scheduled successfully";
+        assert appointmentID != null;
+        return appointmentID.toString();
     }
+
+    @Override
+    public String getUserProfile(String email) {
+        return Objects.requireNonNull(context.select(PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.DATE_OF_BIRTH, PERSON.PHONE_NUMBER,
+                                ADDRESS.HOUSE_NUMBER, ADDRESS.STREET, ADDRESS.DISTRICT, ADDRESS.CITY, ACCOUNT.ACCOUNT_EMAIL)
+                        .from(ACCOUNT.join(PATIENT).on(ACCOUNT.OWNER_ID.eq(PATIENT.PATIENT_ID))
+                                .join(PERSON).on(PATIENT.PERSON_ID.eq(PERSON.PERSON_ID))
+                                .join(ADDRESS).on(PERSON.ADDRESS_ID.eq(ADDRESS.ADDRESS_ID)))
+                        .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                        .fetchAny())
+                .formatJSON();
+    }
+
+    @Override
+    public String getAppointmentList(String email) {
+        return context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS, PAYMENT.TRANSACTION_STATUS,
+                        DEPARTMENT.NAME, PERSON.FIRST_NAME, PERSON.LAST_NAME)
+                .from(ACCOUNT.join(APPOINTMENT).on(ACCOUNT.OWNER_ID.eq(APPOINTMENT.PATIENT_ID))
+                        .join(STAFF).on(APPOINTMENT.PHYSICIAN_ID.eq(STAFF.STAFF_ID))
+                        .join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
+                        .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
+                        .join(PAYMENT).on(APPOINTMENT.APPOINTMENT_ID.eq(PAYMENT.APPOINTMENT_ID)))
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                .fetch().formatJSON();
+    }
+
+    @Override
+    public void postFeedback(FeedbackDTO feedbackDTO, String email) {
+        Integer accountID = context.select(ACCOUNT.ACCOUNT_ID)
+                .from(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                .fetchOneInto(Integer.class);
+
+        assert accountID != null;
+
+        FeedbackRecord feedbackRecord = new FeedbackRecord();
+        feedbackRecord.setAccountId(accountID);
+        feedbackRecord.setCategory(feedbackDTO.getCategory());
+        feedbackRecord.setContent(feedbackDTO.getContent());
+        feedbackRecord.setLevel(feedbackDTO.getLevel());
+        feedbackRecord.setTimestamp(LocalDateTime.now());
+
+        context.insertInto(FEEDBACK).set(feedbackRecord).execute();
+    }
+
 }
