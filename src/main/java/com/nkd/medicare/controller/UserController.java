@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/user")
@@ -39,13 +41,21 @@ public class UserController {
     }
 
     @GetMapping("/appointments")
-    public ResponseEntity<?> getAppointmentList(@RequestParam("email") String email){
-        return ResponseEntity.ok(userService.getAppointmentList(email));
+    public ResponseEntity<?> getAppointmentList(@RequestParam("email") String email, @RequestParam(value = "status", required = false) String status
+            , @RequestParam(value = "query", required = false) String query, @RequestParam(value = "department", required = false) String department
+            , @RequestParam(value = "startDate", required = false) String startDate, @RequestParam(value = "endDate", required = false) String endDate
+    ){
+        return ResponseEntity.ok(userService.getAppointmentList(email, status, query, department, startDate, endDate));
     }
 
     @PostMapping("/feedback")
     public ResponseEntity<?> postFeedback(@RequestBody FeedbackDTO feedbackDTO, @RequestParam("email") String email){
         userService.postFeedback(feedbackDTO, email);
         return ResponseEntity.ok("Feedback posted successfully");
+    }
+
+    @GetMapping("/feedbacks")
+    public ResponseEntity<?> getFeedbacks(@RequestParam("email") String email){
+        return ResponseEntity.ok(userService.getFeedbacks(email));
     }
 }
