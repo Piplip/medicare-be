@@ -12,6 +12,7 @@ import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -117,7 +118,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public String getAppointmentList(String email) {
+    public String getAppointmentList(String email, String status, String query, String department, String startDate, String endDate) {
+        System.out.println("email: " + email);
+        System.out.println("status: " + status);
+        System.out.println("query: " + query);
+        System.out.println("department: " + department);
+        System.out.println("startDate: " + startDate);
+        System.out.println("endDate: " + endDate);
+
         return context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS, PAYMENT.TRANSACTION_STATUS,
                         DEPARTMENT.NAME, PERSON.FIRST_NAME, PERSON.LAST_NAME)
                 .from(ACCOUNT.join(APPOINTMENT).on(ACCOUNT.OWNER_ID.eq(APPOINTMENT.PATIENT_ID))
@@ -146,6 +154,14 @@ public class UserServiceImpl implements UserService {
         feedbackRecord.setTimestamp(LocalDateTime.now());
 
         context.insertInto(FEEDBACK).set(feedbackRecord).execute();
+    }
+
+    @Override
+    public String getFeedbacks(String email) {
+        return context.select(FEEDBACK.FEEDBACK_ID, FEEDBACK.CATEGORY, FEEDBACK.CONTENT, FEEDBACK.LEVEL, FEEDBACK.TIMESTAMP)
+                .from(ACCOUNT.join(FEEDBACK).on(ACCOUNT.ACCOUNT_ID.eq(FEEDBACK.ACCOUNT_ID)))
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                .fetch().formatJSON();
     }
 
 }
