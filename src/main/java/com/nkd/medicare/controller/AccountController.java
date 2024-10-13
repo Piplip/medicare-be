@@ -11,8 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/user")
@@ -59,22 +57,21 @@ public class AccountController {
     }
 
     @GetMapping("/token/verify")
-    public ResponseEntity<?> activateAccount(@RequestParam(value = "token") String token, @RequestParam(value = "email") String email) {
-        String accountID = "";
+    public ResponseEntity<?> activateAccount(@RequestParam(value = "token") String token, @RequestParam(value = "email") String email){
+        String accountID;
         try {
-            accountID = accountService.activateAccount(token, email)+"";
-        } catch (ApiException e) {
+            accountID = accountService.activateAccount(token, email);
+        } catch (ApiException e){
             String errorUrl = "http://localhost:" + clientPort + "/verify/fail?error=" + e.getMessage();
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(errorUrl))
-                    .build();
-        } finally {
-            String successUrl = "http://localhost:" + clientPort + "/verify/success";
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(successUrl))
-                    .header("accountID", accountID)
+                    .location(java.net.URI.create(errorUrl))
                     .build();
         }
+
+        String successUrl = "http://localhost:" + clientPort + "/verify/success?" + "accountID=" + accountID;
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(java.net.URI.create(successUrl))
+                .build();
     }
 
     @PostMapping("/token/renew")
@@ -86,14 +83,16 @@ public class AccountController {
         }
         return ResponseEntity.ok("New token has been generated and send to your email! Follow the instructions in the mail to activate your account");
     }
+
     @PostMapping("/check-identity")
     public ResponseEntity<?> checkCCCD(@RequestParam(value = "accountID") String accountID, @RequestParam(value = "url") String url){
+        System.out.println("image url: " + url);
         try {
-            accountService.checkCCCD(accountID,url);
+            accountService.checkCCCD(accountID, url);
         }
         catch(ApiException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-        return ResponseEntity.ok("Congratulate, you have successfully authenticated your identify. We will direct you to login page to log into");
+        return ResponseEntity.ok("Identity have been authenticated");
     }
 }

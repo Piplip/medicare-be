@@ -140,7 +140,7 @@
                         <driver>com.mysql.cj.jdbc.Driver</driver>
                         <url>jdbc:mysql://localhost:3306</url>
                         <user>root</user>
-                        <password>{somenewpassword123}</password>
+                        <password>{Crossfire123}</password>
                     </jdbc>
                     <generator>
                         <database>

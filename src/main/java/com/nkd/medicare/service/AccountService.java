@@ -7,7 +7,7 @@ public interface AccountService {
     void createAccount(Credential credential);
     void deleteAccount(String email);
     void updatePassword(String email, String password);
-    Integer activateAccount(String token, String email);
+    String activateAccount(String token, String email);
     void renewConfirmationToken(Integer accountID);
     Session login(Credential credential);
     Session loginWithSessionID(Credential credential);
