@@ -13,6 +13,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StaffExcelData {
+    private int ResultType;
     private String accountID;
     private String email;
     private String password;
