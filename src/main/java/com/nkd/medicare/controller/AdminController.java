@@ -30,7 +30,7 @@ public class AdminController {
         try{
             dulieuthanhcong = adminService.readFromExcel(url);
         } catch (Exception e){
-            return ResponseEntity.badRequest().body("Error reading excel file");
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
         return ResponseEntity.ok(dulieuthanhcong);
     }

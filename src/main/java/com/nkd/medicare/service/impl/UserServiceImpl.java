@@ -5,6 +5,7 @@ import com.nkd.medicare.domain.FeedbackDTO;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
 import com.nkd.medicare.service.UserService;
+import com.nkd.medicare.tables.records.AppointmentRecord;
 import com.nkd.medicare.tables.records.FeedbackRecord;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 import static com.nkd.medicare.Tables.*;
@@ -163,5 +165,45 @@ public class UserServiceImpl implements UserService {
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
                 .fetch().formatJSON();
     }
-
+    @Override
+    public String findAppointment(String email, String startDate, String endDate, String department, String doctorName, String status){
+        Condition condition = DSL.trueCondition();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        if(department != null && !department.isEmpty() && !department.equals("default")){
+            condition = condition.and(DEPARTMENT.NAME.eq(department));
+        }
+        if(startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()){
+            condition = condition.between(APPOINTMENT.DATE.eq(LocalDate.parse(startDate, formatter)),APPOINTMENT.DATE.eq(LocalDate.parse(endDate, formatter)));
+        }
+        else if(startDate != null && !startDate.isEmpty()){
+            condition = condition.and(APPOINTMENT.DATE.eq(LocalDate.parse(startDate, formatter)));
+        }
+        if(status != null && !status.isEmpty() && !status.equals("default")){
+            if(status.equals("SCHEDULED")){
+                condition = condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.SCHEDULED));
+            }
+            else if(status.equals("CONFIRMED")){
+                condition = condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.CONFIRMED));
+            }
+            else if(status.equals("CANCELLED")){
+                condition = condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.CANCELLED));
+            }
+        }
+        if(doctorName != null && !doctorName.isEmpty() && !doctorName.equals("default")){
+            condition = condition.and(PERSON.LAST_NAME.eq(doctorName));
+        }
+        return context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS, PAYMENT.TRANSACTION_STATUS,
+                        DEPARTMENT.NAME, PERSON.FIRST_NAME, PERSON.LAST_NAME)
+                .from(ACCOUNT.join(APPOINTMENT).on(ACCOUNT.OWNER_ID.eq(APPOINTMENT.PATIENT_ID))
+                        .join(STAFF).on(APPOINTMENT.PHYSICIAN_ID.eq(STAFF.STAFF_ID))
+                        .join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
+                        .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
+                        .join(PAYMENT).on(APPOINTMENT.APPOINTMENT_ID.eq(PAYMENT.APPOINTMENT_ID)))
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email)
+                        .and(condition))
+//                .limit(Integer.parseInt(pageSize))
+//                .offset(((Integer.parseInt(pageNumber) - 1) * Integer.parseInt(pageSize)))
+                .fetch()
+                .formatJSON();
+    }
 }

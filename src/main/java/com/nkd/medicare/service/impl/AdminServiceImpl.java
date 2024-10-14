@@ -102,7 +102,7 @@ public class AdminServiceImpl implements AdminService {
             for (Row row : sheet) {
                 staffData = addStaff(row);
                 if (staffData != null) returnList.add(staffData);
-            }
+                }
             workbook.close();
             byteInputStream.close();
             inputStream.close();
@@ -116,16 +116,15 @@ public class AdminServiceImpl implements AdminService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         ArrayList<?> rowData = extractData(row);
         StaffExcelData data = new StaffExcelData();
-        if(rowData == null){
+        if(rowData.getLast().toString().compareTo("2") == 0){
             data.setResultType(2);
-            data.setAccountID(null);
-            data.setEmail(rowData.get(0).toString());
-            data.setPassword(rowData.get(1).toString());
-            data.setFirstname(rowData.get(2).toString());
-            data.setLastname(rowData.get(3).toString());
-            data.setCCCD(rowData.get(5).toString());
-            data.setPhoneNumber(rowData.get(6).toString());
-            data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+            data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
+            data.setDateOfBirth(LocalDate.now());
+            data.setPassword(rowData.get(1) != null ? rowData.get(1).toString() : "");
+            data.setFirstname(rowData.get(2) != null ? rowData.get(2).toString() : "");
+            data.setLastname(rowData.get(3) != null ? rowData.get(3).toString() : "");
+            data.setCCCD(rowData.get(5) != null ? rowData.get(5).toString() : "");
+            data.setPhoneNumber(rowData.get(6) != null ? rowData.get(6).toString() : "");
             data.setStaffID(null);
             data.setRole(null);
             return data;
@@ -136,14 +135,13 @@ public class AdminServiceImpl implements AdminService {
                     .where(ACCOUNT.ID_CARD_NUMBER.eq(rowData.get(5).toString()))
                     .fetchOne() != null){
                 data.setResultType(3);
-                data.setAccountID(null);
-                data.setEmail(rowData.get(0).toString());
-                data.setPassword(rowData.get(1).toString());
-                data.setFirstname(rowData.get(2).toString());
-                data.setLastname(rowData.get(3).toString());
-                data.setCCCD(rowData.get(5).toString());
-                data.setPhoneNumber(rowData.get(6).toString());
+                data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
                 data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+                data.setPassword(rowData.get(1) != null ? rowData.get(1).toString() : "");
+                data.setFirstname(rowData.get(2) != null ? rowData.get(2).toString() : "");
+                data.setLastname(rowData.get(3) != null ? rowData.get(3).toString() : "");
+                data.setCCCD(rowData.get(5) != null ? rowData.get(5).toString() : "");
+                data.setPhoneNumber(rowData.get(6) != null ? rowData.get(6).toString() : "");
                 data.setStaffID(null);
                 data.setRole(null);
                 return data;
@@ -154,14 +152,13 @@ public class AdminServiceImpl implements AdminService {
                     .or(ACCOUNT.ACCOUNT_PASSWORD.eq(encoder.encode(rowData.get(1).toString())))
                     .fetchOne() != null){
                 data.setResultType(3);
-                data.setAccountID(null);
-                data.setEmail(rowData.get(0).toString());
-                data.setPassword(rowData.get(1).toString());
-                data.setFirstname(rowData.get(2).toString());
-                data.setLastname(rowData.get(3).toString());
-                data.setCCCD(rowData.get(5).toString());
-                data.setPhoneNumber(rowData.get(6).toString());
                 data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+                data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
+                data.setPassword(rowData.get(1) != null ? rowData.get(1).toString() : "");
+                data.setFirstname(rowData.get(2) != null ? rowData.get(2).toString() : "");
+                data.setLastname(rowData.get(3) != null ? rowData.get(3).toString() : "");
+                data.setCCCD(rowData.get(5) != null ? rowData.get(5).toString() : "");
+                data.setPhoneNumber(rowData.get(6) != null ? rowData.get(6).toString() : "");
                 data.setStaffID(null);
                 data.setRole(null);
                 return data;
@@ -182,7 +179,7 @@ public class AdminServiceImpl implements AdminService {
                 person.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
                 person.setPhoneNumber(rowData.get(6).toString());
                 person.setSecPhoneNumber(rowData.get(7).toString());
-                person.setGender(rowData.get(8).equals(1.0) ? "Male" : "Female");
+                person.setGender(rowData.get(8).equals(1) ? "Male" : "Female");
                 person.setPrimaryLanguage(rowData.get(9).toString());
                 person.setAddressId(addressID);
                 int personID = Objects.requireNonNull(context.insertInto(PERSON).set(person)
@@ -195,10 +192,10 @@ public class AdminServiceImpl implements AdminService {
                 staff.setLicenseType(rowData.get(13).toString());
                 staff.setLicenseNumber(rowData.get(14).toString());
                 staff.setLicenseExpiryDate(LocalDate.parse(rowData.get(15).toString(), formatter));
-                staff.setEmpStartDate(LocalDate.parse(LocalDate.now().toString(), formatter));
+                staff.setEmpStartDate(LocalDate.now());
                 staff.setEmpStatus("Active");
-                staff.setLastInfoUpdate(LocalDateTime.now());
 
+                staff.setLastInfoUpdate(LocalDateTime.now());
                 AccountAccountRole role;
                 if (rowData.get(11).toString().compareTo("NURSE") == 0) {
                     staff.setStaffType(StaffStaffType.NURSE);
@@ -210,7 +207,6 @@ public class AdminServiceImpl implements AdminService {
                     role = AccountAccountRole.PHARMACIST;
                     staff.setStaffType(StaffStaffType.PHARMACIST);
                 } else return null;
-
                 int staffID = Objects.requireNonNull(context.insertInto(STAFF).set(staff)
                         .returning(STAFF.STAFF_ID).fetchOne()).getStaffId();
 
@@ -233,16 +229,16 @@ public class AdminServiceImpl implements AdminService {
 
                 data.setResultType(1);
                 data.setAccountID(accountID + "");
+                data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
                 data.setEmail(newAccount.getAccountEmail());
                 data.setPassword(rowData.get(1).toString());
                 data.setFirstname(person.getFirstName());
                 data.setLastname(person.getLastName());
                 data.setCCCD(rowData.get(5).toString());
                 data.setPhoneNumber(person.getPhoneNumber());
-                data.setDateOfBirth(person.getDateOfBirth());
                 data.setStaffID(staffID + "");
                 data.setRole(role);
-
+                System.out.println("alo5");
                 return data;
             }
         }
@@ -323,6 +319,9 @@ public class AdminServiceImpl implements AdminService {
             }
         }
         if (checkdata == 22) return data;
-        else return null;
+        else {
+            data.add(2);
+            return data;
+        }
     }
 }

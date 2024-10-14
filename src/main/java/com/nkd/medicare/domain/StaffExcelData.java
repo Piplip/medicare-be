@@ -16,11 +16,11 @@ public class StaffExcelData {
     private int ResultType;
     private String accountID;
     private String email;
+    private LocalDate DateOfBirth;
     private String password;
     private String firstname;
     private String lastname;
     private String CCCD;
-    private LocalDate dateOfBirth;
     private String phoneNumber;
     private String staffID;
     private AccountAccountRole role;
