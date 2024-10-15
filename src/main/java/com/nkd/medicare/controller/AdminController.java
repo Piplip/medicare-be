@@ -20,17 +20,20 @@ public class AdminController {
     public ResponseEntity<?> getStaff(@RequestParam("name") String name, @RequestParam("department") String department,
                                       @RequestParam("primary-language") String primaryLanguage, @RequestParam("specialization") String specialization,
                                       @RequestParam("gender") String gender, @RequestParam("page-size") String pageSize,
-                                      @RequestParam("page-number") String pageNumber, @RequestParam("staff-type") String staffType){
-        return ResponseEntity.ok(adminService.getStaff(name, department, primaryLanguage, specialization, gender, pageSize, pageNumber, staffType));
+                                      @RequestParam("page-number") String pageNumber, @RequestParam("staff-type") String staffType,
+                                      @RequestParam("staff-status") String status){
+        return ResponseEntity.ok(adminService.getStaff(name, department, primaryLanguage, specialization, gender, pageSize, pageNumber, staffType, status));
     }
 
-    @PostMapping("/excel")
+    @PostMapping("/staff/add")
     public ResponseEntity<?> handleExcel(@RequestParam(value = "url") String url){
+        System.out.println("URL: " + url);
         List<StaffExcelData> dulieuthanhcong;
         try{
             dulieuthanhcong = adminService.readFromExcel(url);
         } catch (Exception e){
-            return ResponseEntity.badRequest().body(e.getMessage());
+            System.out.println(e.getMessage());
+            return ResponseEntity.badRequest().body("Error reading excel file");
         }
         return ResponseEntity.ok(dulieuthanhcong);
     }
@@ -50,5 +53,11 @@ public class AdminController {
     public ResponseEntity<?> updateStaff(@RequestBody StaffDTO staffDTO){
         adminService.updateStaff(staffDTO);
         return ResponseEntity.ok("Staff updated successfully");
+    }
+
+    @PatchMapping("/staff/update/profile-img")
+    public ResponseEntity<?> updateStaffProfileImage(@RequestParam("id") String staffID, @RequestParam("imageURL") String imageURL){
+        adminService.updateStaffProfileImage(staffID, imageURL);
+        return ResponseEntity.ok("Staff profile image updated successfully");
     }
 }

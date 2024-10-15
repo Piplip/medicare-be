@@ -40,7 +40,7 @@ public class AdminServiceImpl implements AdminService {
     private final PasswordEncoder encoder;
 
     public String getStaff(String name, String department, String primaryLanguage, String specialization
-            , String gender, String pageSize, String pageNumber, String staffType) {
+            , String gender, String pageSize, String pageNumber, String staffType, String status) {
         Condition condition = DSL.trueCondition();
 
         if(department != null && !department.isEmpty() && !department.equals("default")){
@@ -54,6 +54,9 @@ public class AdminServiceImpl implements AdminService {
         }
         if(gender != null && !gender.isEmpty()){
             condition = condition.and(PERSON.GENDER.eq(gender));
+        }
+        if(status != null && !status.isEmpty() && !status.equals("default")){
+            condition = condition.and(STAFF.EMP_STATUS.eq(status));
         }
         if(staffType != null && !staffType.isEmpty()){
             if(staffType.compareTo("nurse") == 0) {
@@ -71,7 +74,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         return context.select(STAFF.STAFF_ID, PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER,
-                        DEPARTMENT.NAME, SPECIALIZATION.NAME, STAFF.STAFF_TYPE, ACCOUNT.ACCOUNT_EMAIL)
+                        DEPARTMENT.NAME, SPECIALIZATION.NAME, STAFF.STAFF_TYPE, ACCOUNT.ACCOUNT_EMAIL, STAFF.EMP_STATUS)
                 .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
                         .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
                         .leftJoin(STAFF_SPECIALIZATION).on(STAFF.STAFF_ID.eq(STAFF_SPECIALIZATION.STAFF_ID))
@@ -102,7 +105,7 @@ public class AdminServiceImpl implements AdminService {
             for (Row row : sheet) {
                 staffData = addStaff(row);
                 if (staffData != null) returnList.add(staffData);
-                }
+            }
             workbook.close();
             byteInputStream.close();
             inputStream.close();
@@ -130,10 +133,11 @@ public class AdminServiceImpl implements AdminService {
             return data;
         }
         else {
-            if(context.select(ACCOUNT)
+            var existID = context.select(ACCOUNT)
                     .from(ACCOUNT)
                     .where(ACCOUNT.ID_CARD_NUMBER.eq(rowData.get(5).toString()))
-                    .fetchOne() != null){
+                    .fetch();
+            if(!existID.isEmpty()){
                 data.setResultType(3);
                 data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
                 data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
@@ -146,11 +150,11 @@ public class AdminServiceImpl implements AdminService {
                 data.setRole(null);
                 return data;
             }
-            if(context.select(ACCOUNT)
+            var existEmail = context.select(ACCOUNT)
                     .from(ACCOUNT)
                     .where(ACCOUNT.ACCOUNT_EMAIL.eq(rowData.get(0).toString()))
-                    .or(ACCOUNT.ACCOUNT_PASSWORD.eq(encoder.encode(rowData.get(1).toString())))
-                    .fetchOne() != null){
+                    .fetch();
+            if(!existEmail.isEmpty()){
                 data.setResultType(3);
                 data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
                 data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
@@ -299,6 +303,14 @@ public class AdminServiceImpl implements AdminService {
                 .execute();
     }
 
+    @Override
+    public void updateStaffProfileImage(String staffID, String imageURL) {
+        context.update(STAFF)
+                .set(STAFF.STAFF_IMAGE, imageURL)
+                .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
+                .execute();
+    }
+
     private ArrayList<?> extractData(Row row) {
         int checkdata = 0;
         ArrayList<Object> data = new ArrayList<>();
@@ -309,6 +321,7 @@ public class AdminServiceImpl implements AdminService {
                     checkdata++;
                     break;
                 case BLANK:
+                    data.add("");
                     break;
                 case NUMERIC:
                     double temp = cell.getNumericCellValue();

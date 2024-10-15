@@ -2,6 +2,7 @@ package com.nkd.medicare.controller;
 
 import com.nkd.medicare.domain.AppointmentDTO;
 import com.nkd.medicare.domain.FeedbackDTO;
+import com.nkd.medicare.domain.StaffDTO;
 import com.nkd.medicare.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -47,13 +48,7 @@ public class UserController {
     ){
         return ResponseEntity.ok(userService.getAppointmentList(email, status, query, department, startDate, endDate));
     }
-    @GetMapping("/appointments/find")
-    public ResponseEntity<?> findAppointmentList(@RequestParam("email") String email, @RequestParam(value = "department", required = false) String department
-            , @RequestParam(value = "startDate", required = false) String startDate, @RequestParam(value = "endDate", required = false) String endDate, @RequestParam(value = "doctorName", required = false) String doctorName
-            , @RequestParam(value = "status", required = false) String status
-    ){
-        return ResponseEntity.ok(userService.findAppointment(email, startDate, endDate, department, doctorName, status));
-    }
+
     @PostMapping("/feedback")
     public ResponseEntity<?> postFeedback(@RequestBody FeedbackDTO feedbackDTO, @RequestParam("email") String email){
         userService.postFeedback(feedbackDTO, email);
@@ -64,4 +59,5 @@ public class UserController {
     public ResponseEntity<?> getFeedbacks(@RequestParam("email") String email){
         return ResponseEntity.ok(userService.getFeedbacks(email));
     }
+
 }

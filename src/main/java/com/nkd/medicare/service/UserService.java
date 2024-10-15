@@ -11,5 +11,4 @@ public interface UserService {
     String getAppointmentList(String email, String status, String query, String department, String startDate, String endDate);
     void postFeedback(FeedbackDTO feedbackDTO, String email);
     String getFeedbacks(String email);
-    String findAppointment(String email,String startDate, String endDate, String department, String doctorName, String status);
 }
