@@ -40,7 +40,7 @@ public class AdminServiceImpl implements AdminService {
     private final PasswordEncoder encoder;
 
     public String getStaff(String name, String department, String primaryLanguage, String specialization
-            , String gender, String pageSize, String pageNumber, String staffType) {
+            , String gender, String pageSize, String pageNumber, String staffType, String status) {
         Condition condition = DSL.trueCondition();
 
         if(department != null && !department.isEmpty() && !department.equals("default")){
@@ -54,6 +54,9 @@ public class AdminServiceImpl implements AdminService {
         }
         if(gender != null && !gender.isEmpty()){
             condition = condition.and(PERSON.GENDER.eq(gender));
+        }
+        if(status != null && !status.isEmpty() && !status.equals("default")){
+            condition = condition.and(STAFF.EMP_STATUS.eq(status));
         }
         if(staffType != null && !staffType.isEmpty()){
             if(staffType.compareTo("nurse") == 0) {
@@ -71,7 +74,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         return context.select(STAFF.STAFF_ID, PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER,
-                        DEPARTMENT.NAME, SPECIALIZATION.NAME, STAFF.STAFF_TYPE, ACCOUNT.ACCOUNT_EMAIL)
+                        DEPARTMENT.NAME, SPECIALIZATION.NAME, STAFF.STAFF_TYPE, ACCOUNT.ACCOUNT_EMAIL, STAFF.EMP_STATUS)
                 .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
                         .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
                         .leftJoin(STAFF_SPECIALIZATION).on(STAFF.STAFF_ID.eq(STAFF_SPECIALIZATION.STAFF_ID))
@@ -116,87 +119,133 @@ public class AdminServiceImpl implements AdminService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         ArrayList<?> rowData = extractData(row);
         StaffExcelData data = new StaffExcelData();
-
-        AddressRecord address = new AddressRecord();
-        address.setProvince(rowData.get(5).toString());
-        address.setCity(rowData.get(4).toString());
-        address.setDistrict(rowData.get(3).toString());
-        address.setStreet(rowData.get(2).toString());
-        address.setHouseNumber(rowData.get(1).toString());
-        int addressID = Objects.requireNonNull(context.insertInto(ADDRESS).set(address)
-                .returning(ADDRESS.ADDRESS_ID).fetchOne()).getAddressId();
-
-        PersonRecord person = new PersonRecord();
-        person.setFirstName(rowData.get(6).toString());
-        person.setLastName(rowData.get(7).toString());
-        person.setDateOfBirth(LocalDate.parse(rowData.get(8).toString(), formatter));
-        person.setPhoneNumber(rowData.get(9).toString());
-        person.setSecPhoneNumber(rowData.get(10).toString());
-        person.setGender(rowData.get(11).toString());
-        person.setPrimaryLanguage(rowData.get(12).toString());
-        person.setAddressId(addressID);
-        int personID = Objects.requireNonNull(context.insertInto(PERSON).set(person)
-                .returning(PERSON.PERSON_ID).fetchOne()).getPersonId();
-
-        StaffRecord staff = new StaffRecord();
-        staff.setPersonId(personID);
-        staff.setStaffImage(rowData.get(13).toString());
-        staff.setDepartmentId(1);
-        staff.setLicenseType(rowData.get(16).toString());
-        staff.setLicenseNumber(rowData.get(17).toString());
-        staff.setLicenseExpiryDate(LocalDate.parse(rowData.get(18).toString(), formatter));
-        staff.setEmpStartDate(LocalDate.parse(rowData.get(19).toString(), formatter));
-        staff.setEmpEndDate(LocalDate.parse(rowData.get(20).toString(), formatter));
-        staff.setEmpStatus(rowData.get(21).toString());
-        staff.setLastInfoUpdate(LocalDateTime.now());
-
-        AccountAccountRole role;
-        if(rowData.get(14).toString().compareTo("NURSE") == 0) {
-            staff.setStaffType(StaffStaffType.NURSE);
-            role = AccountAccountRole.NURSE;
+        if(rowData.getLast().toString().compareTo("2") == 0){
+            data.setResultType(2);
+            data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
+            data.setDateOfBirth(LocalDate.now());
+            data.setPassword(rowData.get(1) != null ? rowData.get(1).toString() : "");
+            data.setFirstname(rowData.get(2) != null ? rowData.get(2).toString() : "");
+            data.setLastname(rowData.get(3) != null ? rowData.get(3).toString() : "");
+            data.setCCCD(rowData.get(5) != null ? rowData.get(5).toString() : "");
+            data.setPhoneNumber(rowData.get(6) != null ? rowData.get(6).toString() : "");
+            data.setStaffID(null);
+            data.setRole(null);
+            return data;
         }
-        else if(rowData.get(14).toString().compareTo("DOCTOR") == 0) {
-            role = AccountAccountRole.DOCTOR;
-            staff.setStaffType(StaffStaffType.DOCTOR);
+        else {
+            var existID = context.select(ACCOUNT)
+                    .from(ACCOUNT)
+                    .where(ACCOUNT.ID_CARD_NUMBER.eq(rowData.get(5).toString()))
+                    .fetch();
+            if(!existID.isEmpty()){
+                data.setResultType(3);
+                data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
+                data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+                data.setPassword(rowData.get(1) != null ? rowData.get(1).toString() : "");
+                data.setFirstname(rowData.get(2) != null ? rowData.get(2).toString() : "");
+                data.setLastname(rowData.get(3) != null ? rowData.get(3).toString() : "");
+                data.setCCCD(rowData.get(5) != null ? rowData.get(5).toString() : "");
+                data.setPhoneNumber(rowData.get(6) != null ? rowData.get(6).toString() : "");
+                data.setStaffID(null);
+                data.setRole(null);
+                return data;
+            }
+            var existEmail = context.select(ACCOUNT)
+                    .from(ACCOUNT)
+                    .where(ACCOUNT.ACCOUNT_EMAIL.eq(rowData.get(0).toString()))
+                    .fetch();
+            if(!existEmail.isEmpty()){
+                data.setResultType(3);
+                data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+                data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
+                data.setPassword(rowData.get(1) != null ? rowData.get(1).toString() : "");
+                data.setFirstname(rowData.get(2) != null ? rowData.get(2).toString() : "");
+                data.setLastname(rowData.get(3) != null ? rowData.get(3).toString() : "");
+                data.setCCCD(rowData.get(5) != null ? rowData.get(5).toString() : "");
+                data.setPhoneNumber(rowData.get(6) != null ? rowData.get(6).toString() : "");
+                data.setStaffID(null);
+                data.setRole(null);
+                return data;
+            }
+            else {
+                AddressRecord address = new AddressRecord();
+                address.setProvince(rowData.get(21).toString());
+                address.setCity(rowData.get(20).toString());
+                address.setDistrict(rowData.get(19).toString());
+                address.setStreet(rowData.get(18).toString());
+                address.setHouseNumber(rowData.get(17).toString());
+                int addressID = Objects.requireNonNull(context.insertInto(ADDRESS).set(address)
+                        .returning(ADDRESS.ADDRESS_ID).fetchOne()).getAddressId();
+
+                PersonRecord person = new PersonRecord();
+                person.setFirstName(rowData.get(2).toString());
+                person.setLastName(rowData.get(3).toString());
+                person.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+                person.setPhoneNumber(rowData.get(6).toString());
+                person.setSecPhoneNumber(rowData.get(7).toString());
+                person.setGender(rowData.get(8).equals(1) ? "Male" : "Female");
+                person.setPrimaryLanguage(rowData.get(9).toString());
+                person.setAddressId(addressID);
+                int personID = Objects.requireNonNull(context.insertInto(PERSON).set(person)
+                        .returning(PERSON.PERSON_ID).fetchOne()).getPersonId();
+
+                StaffRecord staff = new StaffRecord();
+                staff.setPersonId(personID);
+                staff.setStaffImage(rowData.get(10).toString());
+                staff.setDepartmentId(Integer.parseInt(rowData.get(12).toString()));
+                staff.setLicenseType(rowData.get(13).toString());
+                staff.setLicenseNumber(rowData.get(14).toString());
+                staff.setLicenseExpiryDate(LocalDate.parse(rowData.get(15).toString(), formatter));
+                staff.setEmpStartDate(LocalDate.now());
+                staff.setEmpStatus("Active");
+
+                staff.setLastInfoUpdate(LocalDateTime.now());
+                AccountAccountRole role;
+                if (rowData.get(11).toString().compareTo("NURSE") == 0) {
+                    staff.setStaffType(StaffStaffType.NURSE);
+                    role = AccountAccountRole.NURSE;
+                } else if (rowData.get(11).toString().compareTo("DOCTOR") == 0) {
+                    role = AccountAccountRole.DOCTOR;
+                    staff.setStaffType(StaffStaffType.DOCTOR);
+                } else if (rowData.get(11).toString().compareTo("PHARMACIST") == 0) {
+                    role = AccountAccountRole.PHARMACIST;
+                    staff.setStaffType(StaffStaffType.PHARMACIST);
+                } else return null;
+                int staffID = Objects.requireNonNull(context.insertInto(STAFF).set(staff)
+                        .returning(STAFF.STAFF_ID).fetchOne()).getStaffId();
+
+                StaffSpecializationRecord staffSpecialization = new StaffSpecializationRecord();
+                staffSpecialization.setStaffId(staffID);
+                staffSpecialization.setSpecializationId(Integer.parseInt(rowData.get(16).toString()));
+                context.insertInto(STAFF_SPECIALIZATION).set(staffSpecialization).execute();
+
+                AccountRecord newAccount = new AccountRecord();
+                newAccount.setAccountEmail(rowData.get(0).toString());
+                newAccount.setAccountPassword(encoder.encode(rowData.get(1).toString()));
+                newAccount.setIdCardNumber(rowData.get(5).toString());
+                newAccount.setAccountRole(role);
+                newAccount.setIsLocked((byte) 0);
+                newAccount.setIsEnable((byte) 1);
+                newAccount.setIsCredentialNonExpired((byte) 1);
+                newAccount.setOwnerId(personID);
+                int accountID = Objects.requireNonNull(context.insertInto(ACCOUNT).set(newAccount)
+                        .returning(ACCOUNT.ACCOUNT_ID).fetchOne()).getAccountId();
+
+                data.setResultType(1);
+                data.setAccountID(accountID + "");
+                data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));
+                data.setEmail(newAccount.getAccountEmail());
+                data.setPassword(rowData.get(1).toString());
+                data.setFirstname(person.getFirstName());
+                data.setLastname(person.getLastName());
+                data.setCCCD(rowData.get(5).toString());
+                data.setPhoneNumber(person.getPhoneNumber());
+                data.setStaffID(staffID + "");
+                data.setRole(role);
+                System.out.println("alo5");
+                return data;
+            }
         }
-        else if(rowData.get(14).toString().compareTo("PHARMACIST") == 0) {
-            role = AccountAccountRole.PHARMACIST;
-            staff.setStaffType(StaffStaffType.PHARMACIST);
-        }
-        else return null;
-
-        int staffID = Objects.requireNonNull(context.insertInto(STAFF).set(staff)
-                .returning(STAFF.STAFF_ID).fetchOne()).getStaffId();
-
-        StaffSpecializationRecord staffSpecialization = new StaffSpecializationRecord();
-        staffSpecialization.setStaffId(staffID);
-        staffSpecialization.setSpecializationId(Integer.parseInt(rowData.get(22).toString()));
-        context.insertInto(STAFF_SPECIALIZATION).set(staffSpecialization).execute();
-
-        AccountRecord newAccount = new AccountRecord();
-        newAccount.setAccountEmail(rowData.get(23).toString());
-        newAccount.setAccountPassword(encoder.encode(rowData.get(24).toString()));
-        newAccount.setIdCardNumber(rowData.get(25).toString());
-        newAccount.setAccountRole(role);
-        newAccount.setIsLocked((byte)0);
-        newAccount.setIsEnable((byte)1);
-        newAccount.setIsCredentialNonExpired((byte)1);
-        newAccount.setOwnerId(personID);
-        int accountID = Objects.requireNonNull(context.insertInto(ACCOUNT).set(newAccount)
-                .returning(ACCOUNT.ACCOUNT_ID).fetchOne()).getAccountId();
-
-        data.setAccountID(accountID + "");
-        data.setEmail(newAccount.getAccountEmail());
-        data.setPassword(rowData.get(24).toString());
-        data.setFirstname(person.getFirstName());
-        data.setLastname(person.getLastName());
-        data.setCCCD(rowData.get(25).toString());
-        data.setPhoneNumber(person.getPhoneNumber());
-        data.setDateOfBirth(person.getDateOfBirth());
-        data.setStaffID(staffID + "");
-        data.setRole(role);
-
-        return data;
     }
 
     @Override
@@ -254,22 +303,38 @@ public class AdminServiceImpl implements AdminService {
                 .execute();
     }
 
+    @Override
+    public void updateStaffProfileImage(String staffID, String imageURL) {
+        context.update(STAFF)
+                .set(STAFF.STAFF_IMAGE, imageURL)
+                .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
+                .execute();
+    }
+
     private ArrayList<?> extractData(Row row) {
+        int checkdata = 0;
         ArrayList<Object> data = new ArrayList<>();
         for (Cell cell : row) {
             switch (cell.getCellType()) {
                 case STRING:
                     data.add(cell.getStringCellValue());
+                    checkdata++;
                     break;
                 case BLANK:
+                    data.add("");
                     break;
                 case NUMERIC:
                     double temp = cell.getNumericCellValue();
                     data.add((int) temp);
+                    checkdata++;
                     break;
                 default:
             }
         }
-        return data;
+        if (checkdata == 22) return data;
+        else {
+            data.add(2);
+            return data;
+        }
     }
 }
