@@ -210,7 +210,11 @@ public class AdminServiceImpl implements AdminService {
                 } else if (rowData.get(11).toString().compareTo("PHARMACIST") == 0) {
                     role = AccountAccountRole.PHARMACIST;
                     staff.setStaffType(StaffStaffType.PHARMACIST);
-                } else return null;
+                } else if (rowData.get(11).toString().compareTo("ADMIN") == 0) {
+                    role = AccountAccountRole.ADMIN;
+                    staff.setStaffType(StaffStaffType.ADMIN);
+                }
+                else return null;
                 int staffID = Objects.requireNonNull(context.insertInto(STAFF).set(staff)
                         .returning(STAFF.STAFF_ID).fetchOne()).getStaffId();
 
@@ -227,7 +231,7 @@ public class AdminServiceImpl implements AdminService {
                 newAccount.setIsLocked((byte) 0);
                 newAccount.setIsEnable((byte) 1);
                 newAccount.setIsCredentialNonExpired((byte) 1);
-                newAccount.setOwnerId(personID);
+                newAccount.setOwnerId(staffID);
                 int accountID = Objects.requireNonNull(context.insertInto(ACCOUNT).set(newAccount)
                         .returning(ACCOUNT.ACCOUNT_ID).fetchOne()).getAccountId();
 
