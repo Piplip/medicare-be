@@ -10,6 +10,7 @@ public interface AccountService {
     String activateAccount(String token, String email);
     void renewConfirmationToken(Integer accountID);
     Session login(Credential credential);
+    Session staffLogin(Credential credential);
     Session loginWithSessionID(Credential credential);
     void checkCCCD(String account_id, String url);
 }

@@ -17,7 +17,9 @@ public class Session implements Serializable {
     private String email;
     private boolean isOnline;
     private String sessionID;
+    private String imageURL;
     private Integer accountID;
+    private Integer userID;
     private String firstName;
     private String lastName;
     private AccountAccountRole accountRole;
