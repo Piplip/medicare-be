@@ -5,10 +5,11 @@ import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
 import com.nkd.medicare.service.AccountService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -56,6 +57,20 @@ public class AccountController {
         return ResponseEntity.ok(sendbackSession);
     }
 
+    @PostMapping("/staff/login")
+    public ResponseEntity<?> handleStaffLogin(@RequestBody Credential credential){
+        Session successSession = accountService.staffLogin(credential);
+
+        HttpCookie cookie = ResponseCookie.from("STAFF-ID", successSession.getUserID().toString())
+                .path("/")
+                .maxAge(3600)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(successSession);
+    }
+
     @GetMapping("/token/verify")
     public ResponseEntity<?> activateAccount(@RequestParam(value = "token") String token, @RequestParam(value = "email") String email){
         String accountID;
@@ -86,7 +101,6 @@ public class AccountController {
 
     @PostMapping("/check-identity")
     public ResponseEntity<?> checkCCCD(@RequestParam(value = "accountID") String accountID, @RequestParam(value = "url") String url){
-        System.out.println("image url: " + url);
         try {
             accountService.checkCCCD(accountID, url);
         }

@@ -181,6 +181,42 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    public Session staffLogin(Credential credential) {
+        AccountRecord accountRecord = context.selectFrom(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(credential.getEmail()))
+                .fetchOne();
+
+        assert accountRecord != null;
+        if(!encoder.matches(credential.getPassword(), accountRecord.getAccountPassword())){
+            throw new ApiException("Invalid password for account: " + credential.getEmail());
+        }
+
+        UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(credential.getEmail(), credential.getPassword());
+        authenticationManager.authenticate(token);
+
+        Object[] staffInfo = context.select(STAFF.STAFF_ID, STAFF.PERSON_ID, STAFF.STAFF_IMAGE)
+                .from(STAFF)
+                .where(STAFF.STAFF_ID.eq(accountRecord.getOwnerId()))
+                .fetchOneArray();
+
+        assert staffInfo != null;
+        PersonRecord personRecord = context.selectFrom(PERSON)
+                .where(PERSON.PERSON_ID.eq((Integer) staffInfo[1]))
+                .fetchOne();
+
+        assert personRecord != null;
+        return Session.builder()
+                .userID(((Integer) staffInfo[0]))
+                .firstName(personRecord.getFirstName())
+                .lastName(personRecord.getLastName())
+                .email(accountRecord.getAccountEmail())
+                .imageURL((String) staffInfo[2])
+                .isOnline(true)
+                .accountRole(accountRecord.getAccountRole())
+                .build();
+    }
+
+    @Override
     public Session loginWithSessionID(Credential credential) {
         String sessionID = credential.getSessionID();
         Session currentSession = redisService.get(sessionID);
