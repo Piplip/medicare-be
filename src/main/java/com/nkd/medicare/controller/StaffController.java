@@ -18,19 +18,30 @@ public class StaffController {
 
     @GetMapping("/fetch")
     public ResponseEntity<?> fetchStaffData(HttpServletRequest request){
-        Cookie[] cookies = request.getCookies();
-        String staffID = null;
-
-        if(cookies != null){
-            for (Cookie c : cookies){
-                if("STAFF-ID".equals(c.getName())){
-                    staffID = c.getValue();
-                    break;
-                }
-            }
-        }
+        String staffID = getCookie("STAFF-ID", request);
 
         String staffData = staffService.fetchStaffData(staffID);
         return ResponseEntity.ok(staffData);
+    }
+
+    @GetMapping("/fetch/appointments")
+    public ResponseEntity<?> getTodayAppointment(HttpServletRequest request){
+        String staffID = getCookie("STAFF-ID", request);
+
+        var appointmentData = staffService.getAppointments(staffID);
+        return ResponseEntity.ok(appointmentData);
+    }
+
+    private String getCookie(String cookieName, HttpServletRequest request){
+        Cookie[] cookies = request.getCookies();
+
+        if(cookies != null){
+            for (Cookie c : cookies){
+                if(c.getName().equals(cookieName))
+                    return c.getValue();
+            }
+        }
+
+        return null;
     }
 }
