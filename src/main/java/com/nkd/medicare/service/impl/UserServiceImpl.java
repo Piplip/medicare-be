@@ -75,6 +75,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String makeAppointment(AppointmentDTO appointmentDTO) {
+        System.out.println("date: " + appointmentDTO.getAppointmentDate());
+        System.out.println("time: " + appointmentDTO.getAppointmentTime());
+
         Integer patientID = context.select(PATIENT.PATIENT_ID)
                 .from(ACCOUNT.join(PATIENT).on(ACCOUNT.OWNER_ID.eq(PATIENT.PATIENT_ID)))
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(appointmentDTO.getPatientEmail()))
@@ -90,7 +93,7 @@ public class UserServiceImpl implements UserService {
 
         Integer appointmentID = context.insertInto(APPOINTMENT, APPOINTMENT.PATIENT_ID, APPOINTMENT.PHYSICIAN_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.DEPARTMENT_ID,
                         APPOINTMENT.REASON, APPOINTMENT.STATUS, APPOINTMENT.PHYSICIAN_REFERRED)
-                .values(patientID, Integer.parseInt(appointmentDTO.getDoctorID()), appointmentDTO.getAppointmentDate(), appointmentDTO.getAppointmentTime(), departmentID,
+                .values(patientID, Integer.parseInt(appointmentDTO.getDoctorID()), appointmentDTO.getAppointmentDate().plusDays(1), appointmentDTO.getAppointmentTime(), departmentID,
                         appointmentDTO.getReason(), AppointmentStatus.SCHEDULED, (byte) (appointmentDTO.getIsReferral().equals("yes") ? 1 : 0))
                 .returningResult(APPOINTMENT.APPOINTMENT_ID)
                 .fetchOneInto(Integer.class);
