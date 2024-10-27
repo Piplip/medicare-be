@@ -31,8 +31,11 @@ public class StaffController {
                 }
             }
         }
-        String staffData = staffService.fetchStaffData(staffID);
-
+        String startDate = request.getParameter("startDay");
+        String endDate = request.getParameter("endDay");
+        String type = request.getParameter("type");
+        String staffData = staffService.fetchStaffData(staffID, startDate, endDate, type);
         return ResponseEntity.ok(staffData);
     }
+
 }
