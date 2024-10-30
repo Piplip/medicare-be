@@ -253,9 +253,10 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public void deleteStaff(String staffID) {
+    public void deleteStaff(String staffID, String note) {
         context.update(STAFF)
                 .set(STAFF.EMP_STATUS, "Inactive")
+                .set(STAFF.NOTE, note);
                 .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
                 .execute();
     }

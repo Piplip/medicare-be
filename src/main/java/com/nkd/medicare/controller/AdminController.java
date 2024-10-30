@@ -39,8 +39,8 @@ public class AdminController {
     }
 
     @DeleteMapping("/staff")
-    public ResponseEntity<?> deleteStaff(@RequestParam("id") String staffID){
-        adminService.deleteStaff(staffID);
+    public ResponseEntity<?> deleteStaff(@RequestParam("id") String staffID, @RequestParam("note") String note){
+        adminService.deleteStaff(staffID, note);
         return ResponseEntity.ok("Staff deleted successfully");
     }
 

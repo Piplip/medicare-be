@@ -1,6 +1,6 @@
 #Database
 MYSQL_USERNAME: root
-MYSQL_PASSWORD: somenewpassword123
+MYSQL_PASSWORD: Crossfire123
 
 #Server
 CONTAINER_PORT: 8080
