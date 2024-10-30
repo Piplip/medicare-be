@@ -14,7 +14,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 
 public class MedicationDTO {
-    private String medicationname;
+    private String name;
     private String dosage;
     private String frequency;
     private String route;

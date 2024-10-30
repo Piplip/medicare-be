@@ -1,6 +1,7 @@
 package com.nkd.medicare.controller;
 
 import com.nkd.medicare.domain.MedicationDTO;
+import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.service.StaffService;
 import com.nkd.medicare.service.impl.StaffServiceImpl;
 import jakarta.servlet.http.Cookie;
@@ -20,7 +21,7 @@ public class WebSocketController {
     private final StaffService staffService;
     @MessageMapping("/prescribed")
     @SendTo("/staffconversation")
-    public String handlePrescribed(@RequestBody List<MedicationDTO> listmedication, HttpServletRequest request, @RequestParam("diagonis")  String diagonis){
+    public String handlePrescribed(@RequestBody Prescription prescription, HttpServletRequest request){
         Cookie[] cookies = request.getCookies();
         String staffID = null;
 
@@ -32,6 +33,6 @@ public class WebSocketController {
                 }
             }
         }
-        return staffService.createPrescribed(listmedication,staffID,diagonis);
+        return staffService.createPrescribed(prescription,staffID);
     }
 }

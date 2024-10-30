@@ -1,6 +1,7 @@
 package com.nkd.medicare.controller;
 
 import com.nkd.medicare.domain.MedicationDTO;
+import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.service.StaffService;
 import com.nkd.medicare.tables.Medication;
 import jakarta.servlet.http.Cookie;
@@ -44,7 +45,7 @@ public class StaffController {
         return ResponseEntity.ok(staffService.suggestMedication(medication));
     }
     @GetMapping("/createMedication")
-    public ResponseEntity<?> createMedication(@RequestBody List<MedicationDTO> listmedication, HttpServletRequest request){
+    public ResponseEntity<?> createMedication(@RequestBody Prescription prescription, HttpServletRequest request){
         Cookie[] cookies = request.getCookies();
         String staffID = null;
 
@@ -57,7 +58,7 @@ public class StaffController {
             }
         }
         String diagonis = request.getParameter("diagonis");
-        return ResponseEntity.ok(staffService.createPrescribed(listmedication,staffID,diagonis));
+        return ResponseEntity.ok(staffService.createPrescribed(prescription,staffID));
     }
     @GetMapping("/createMedication/addMedication")
     public ResponseEntity<?> addMedication(@RequestParam("input")  String medication){

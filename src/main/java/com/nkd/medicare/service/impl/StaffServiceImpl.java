@@ -3,7 +3,9 @@ package com.nkd.medicare.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.nkd.medicare.domain.MedicationDTO;
+import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.enums.AppointmentStatus;
+import com.nkd.medicare.enums.StaffStaffType;
 import com.nkd.medicare.service.StaffService;
 import com.nkd.medicare.tables.Prescribed;
 import com.nkd.medicare.tables.records.*;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
@@ -202,43 +205,48 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
-    public String createPrescribed(List<MedicationDTO> listMedication, String staffID, String diagonis) {
-        PresrcibedMedicationRecord presrcibedMedication = new PresrcibedMedicationRecord();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    public String createPrescription(Prescription prescription, String staffID) {
+        PresrcibedMedicationRecord prescribedMedication = new PresrcibedMedicationRecord();
         try {
-            String physicanName = context.select(PERSON.LAST_NAME)
+            String physicianName = context.select(PERSON.LAST_NAME)
                     .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID)))
                     .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
                     .fetchOneInto(String.class);
-            PrescribedRecord presrcibed = Objects.requireNonNull(context.insertInto(PRESCRIBED)
+
+            PrescribedRecord prescribed = Objects.requireNonNull(context.insertInto(PRESCRIBED)
                     .set(PRESCRIBED.PRESCRIBED_DATE, LocalDate.now())
-                    .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicanName)
-                    .set(PRESCRIBED.QUANTITY, (byte) listMedication.size())
-                    .set(PRESCRIBED.DIAGNOSIS, diagonis)
+                    .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicianName)
+                    .set(PRESCRIBED.QUANTITY, ((byte) prescription.getMedicationList().size()))
+                    .set(PRESCRIBED.DIAGNOSIS, prescription.getDiagnosis())
                     .set(PRESCRIBED.STATUS, PrescribedStatus.PENDING)
                     .returning(PRESCRIBED).fetchInto(Prescribed.class));
-            for (MedicationDTO e : listMedication) {
-                presrcibedMedication.setMedicationId(Integer.parseInt(
+
+            for (MedicationDTO e : prescription.getMedicationList()) {
+                prescribedMedication.setMedicationId(Integer.parseInt(
                         Objects.requireNonNull(context.select(MEDICATION.MEDICATION_ID)
                                 .from(MEDICATION)
-                                .where(MEDICATION.NAME.eq(e.getMedicationname()))
+                                .where(MEDICATION.NAME.eq(e.getName()))
                                 .fetchOneInto(String.class))));
-                presrcibedMedication.setDosage(new BigDecimal(e.getDosage()));
-                presrcibedMedication.setAllowRefill(Byte.valueOf(e.getAllow_refill()));
-                presrcibedMedication.setFrequency(e.getFrequency());
-                presrcibedMedication.setRoute(e.getRoute());
-                presrcibedMedication.setStartDate(LocalDate.parse(e.getStartDate(), formatter));
-                presrcibedMedication.setEndDate(LocalDate.parse(e.getEndDate(), formatter));
-                presrcibedMedication.setPhysicianNote(e.getNote());
-                int presrcibedMedicationId = Objects.requireNonNull(context.insertInto(PRESRCIBED_MEDICATION).set(presrcibedMedication)
+                prescribedMedication.setDosage(e.getDosage());
+                prescribedMedication.setFrequency(e.getFrequency());
+                prescribedMedication.setRoute(e.getRoute());
+                prescribedMedication.setStartDate(OffsetDateTime.parse(e.getStartDate()).toLocalDate());
+                prescribedMedication.setEndDate(OffsetDateTime.parse(e.getEndDate()).toLocalDate());
+                prescribedMedication.setPhysicianNote(e.getNote());
+
+                int prescribedMedicationID = Objects.requireNonNull(context.insertInto(PRESRCIBED_MEDICATION).set(prescribedMedication)
                         .returning(PRESRCIBED_MEDICATION.PRESRCIBED_MEDICATION_ID).fetchOne()).getPresrcibedMedicationId();
                 context.insertInto(PRESCRIBED_MEDICATION_LIST)
-                        .set(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID, presrcibed.getPrescribedId())
-                        .set(PRESCRIBED_MEDICATION_LIST.PRESRCIBED_MEDICATION_ID, presrcibedMedicationId).execute();
+                        .set(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID, prescribed.getPrescribedId())
+                        .set(PRESCRIBED_MEDICATION_LIST.PRESRCIBED_MEDICATION_ID, prescribedMedicationID).execute();
             }
+            context.update(APPOINTMENT)
+                    .set(APPOINTMENT.PRESCRIBED_ID, prescribed.getPrescribedId())
+                    .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
+                    .execute();
             Map<String, Object> map = new HashMap<String, Object>();
-            map.put("prescribed",presrcibed);
-            map.put("prescribedMedication",listMedication);
+            map.put("prescribed",prescribed);
+            map.put("prescribedMedication",prescription.getMedicationList());
             Gson gson = new Gson();
             return gson.toJson(map);
         } catch (Exception e) {
