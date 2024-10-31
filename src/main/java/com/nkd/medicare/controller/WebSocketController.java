@@ -19,21 +19,21 @@ import java.util.List;
 @RequestMapping("/api/staff")
 public class WebSocketController {
     private final StaffService staffService;
-    @MessageMapping("/prescribed")
-    @SendTo("/staffconversation")
-    public String handlePrescribed(@RequestBody Prescription prescription, HttpServletRequest request){
-        Cookie[] cookies = request.getCookies();
-        String staffID = null;
 
-        if(cookies != null){
-            for (Cookie c : cookies){
-                if("STAFF-ID".equals(c.getName())){
-                    staffID = c.getValue();
-                    break;
+    @MessageMapping("/create/prescription2")
+    @SendTo("/staffconversation")
+    public Prescription handlePrescribed(@RequestBody Prescription prescription, HttpServletRequest request) {
+            Cookie[] cookies = request.getCookies();
+            String staffID = null;
+
+            if (cookies != null) {
+                for (Cookie c : cookies) {
+                    if ("STAFF-ID".equals(c.getName())) {
+                        staffID = c.getValue();
+                        break;
+                    }
                 }
             }
-        }
-        return null;
-//        return staffService.createPrescribed(prescription,staffID);
+            return staffService.createPrescription(prescription, staffID);
     }
 }
