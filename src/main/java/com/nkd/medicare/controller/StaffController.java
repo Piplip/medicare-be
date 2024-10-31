@@ -1,17 +1,12 @@
 package com.nkd.medicare.controller;
 
-import com.nkd.medicare.domain.MedicationDTO;
 import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.service.StaffService;
-import com.nkd.medicare.tables.Medication;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,46 +17,57 @@ public class StaffController {
 
     @GetMapping("/fetch")
     public ResponseEntity<?> fetchStaffData(HttpServletRequest request){
-        Cookie[] cookies = request.getCookies();
-        String staffID = null;
+        String staffID = getCookie(request);
 
-        if(cookies != null){
-            for (Cookie c : cookies){
-                if("STAFF-ID".equals(c.getName())){
-                    staffID = c.getValue();
-                    break;
-                }
-            }
-        }
-        String startDate = request.getParameter("startDay");
-        String endDate = request.getParameter("endDay");
-        String type = request.getParameter("type");
-        String oneDate = request.getParameter("oneDay");
-        String staffData = staffService.fetchStaffData(staffID, startDate, endDate, type, oneDate);
+        if(staffID == null)
+            return ResponseEntity.badRequest().body("Please login first.");
+
+        String staffData = staffService.fetchStaffData(staffID);
         return ResponseEntity.ok(staffData);
     }
-    @GetMapping("/createMedication/suggest")
-    public ResponseEntity<?> findMedication(@RequestParam("input")  String medication){
-        return ResponseEntity.ok(staffService.suggestMedication(medication));
+
+    @GetMapping("/fetch/appointments")
+    public ResponseEntity<?> getTodayAppointment(HttpServletRequest request){
+        String staffID = getCookie(request);
+
+        var appointmentData = staffService.getAppointments(staffID);
+        return ResponseEntity.ok(appointmentData);
     }
-    @GetMapping("/createMedication")
+
+    @GetMapping("/fetch/statistic")
+    public ResponseEntity<?> getStatistic(HttpServletRequest request, @RequestParam(value = "startDate", required = false) String startDate,
+                                          @RequestParam(value = "endDate", required = false) String endDate,
+                                          @RequestParam(value = "view", required = false) String viewType,
+                                            @RequestParam(value = "date", required = false) String date){
+        String staffID = getCookie(request);
+        return ResponseEntity.ok(staffService.getStatistic(staffID, startDate, endDate, viewType, date));
+    }
+
+    @GetMapping("/medication/suggest")
+    public ResponseEntity<?> findMedication(@RequestParam("q") String query){
+        return ResponseEntity.ok(staffService.suggestMedication(query));
+    }
+
+    @PostMapping("/create/prescription")
     public ResponseEntity<?> createMedication(@RequestBody Prescription prescription, HttpServletRequest request){
+        String staffID = getCookie(request);
+        return ResponseEntity.ok(staffService.createPrescription(prescription, staffID));
+    }
+    @PostMapping("/get/prescription")
+    public ResponseEntity<?> getMedication(@RequestParam("appointmentId") String appointmentID, HttpServletRequest request){
+        String staffID = getCookie(request);
+        return ResponseEntity.ok(staffService.showPrescription(appointmentID));
+    }
+    private String getCookie(HttpServletRequest request){
         Cookie[] cookies = request.getCookies();
-        String staffID = null;
 
         if(cookies != null){
             for (Cookie c : cookies){
-                if("STAFF-ID".equals(c.getName())){
-                    staffID = c.getValue();
-                    break;
-                }
+                if(c.getName().equals("STAFF-ID"))
+                    return c.getValue();
             }
         }
-        String diagonis = request.getParameter("diagonis");
-        return ResponseEntity.ok(staffService.createPrescribed(prescription,staffID));
-    }
-    @GetMapping("/createMedication/addMedication")
-    public ResponseEntity<?> addMedication(@RequestParam("input")  String medication){
-        return ResponseEntity.ok(staffService.addMedication(medication));
+
+        return null;
     }
 }

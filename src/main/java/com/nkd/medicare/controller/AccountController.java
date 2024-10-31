@@ -5,8 +5,6 @@ import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
 import com.nkd.medicare.service.AccountService;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -63,7 +61,7 @@ public class AccountController {
 
         HttpCookie cookie = ResponseCookie.from("STAFF-ID", successSession.getUserID().toString())
                 .path("/")
-                .maxAge(3600)
+                .maxAge(3600 * 3)
                 .build();
 
         return ResponseEntity.ok()

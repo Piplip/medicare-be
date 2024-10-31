@@ -13,6 +13,7 @@ import java.time.LocalTime;
 public class AppointmentDTO {
 
     private String patientEmail;
+    private String patientName;
     private String doctorID;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;

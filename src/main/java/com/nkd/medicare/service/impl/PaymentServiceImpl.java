@@ -1,5 +1,6 @@
 package com.nkd.medicare.service.impl;
 
+import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.PaymentTransactionStatus;
 import com.nkd.medicare.tables.records.PaymentRecord;
 import com.nkd.medicare.utils.VNPayUtils;
@@ -23,7 +24,6 @@ public class PaymentServiceImpl implements PaymentService {
 
     public String createVnPayPayment(HttpServletRequest request, Integer appointmentID) {
         Long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
-        System.out.println("amount: " + amount);
         String bankCode = request.getParameter("bankCode");
         Map<String, String> vnpParamsMap = vnPayConfig.getVNPayConfig(appointmentID+"");
         vnpParamsMap.put("vnp_Amount", String.valueOf(amount));
@@ -53,6 +53,11 @@ public class PaymentServiceImpl implements PaymentService {
         String appointmentID = request.getParameter("vnp_TxnRef");
         String transactionID = request.getParameter("vnp_TransactionNo");
 
+        context.update(APPOINTMENT)
+                .set(APPOINTMENT.STATUS, AppointmentStatus.CONFIRMED)
+                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.valueOf(appointmentID)))
+                .execute();
+
         context.update(PAYMENT)
                 .set(PAYMENT.TRANSACTION_ID, transactionID)
                 .set(PAYMENT.TRANSACTION_STATUS, PaymentTransactionStatus.COMPLETED)
@@ -62,6 +67,12 @@ public class PaymentServiceImpl implements PaymentService {
 
     public void updateVnPaymentFailed(HttpServletRequest request){
         String appointmentID = request.getParameter("vnp_TxnRef");
+
+        context.update(APPOINTMENT)
+                .set(APPOINTMENT.STATUS, AppointmentStatus.CANCELLED)
+                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.valueOf(appointmentID)))
+                .execute();
+
         context.update(PAYMENT)
                 .set(PAYMENT.TRANSACTION_STATUS, PaymentTransactionStatus.FAILED)
                 .where(PAYMENT.APPOINTMENT_ID.eq(Integer.parseInt(appointmentID)))

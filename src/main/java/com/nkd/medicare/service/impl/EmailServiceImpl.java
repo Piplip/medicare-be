@@ -44,6 +44,15 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    @Override
+    public void sendAppointmentConfirmationEmail(String patientEmail, String doctorEmail, String patientName, String date, String time, String reason) {
+        try {
+            sendEmail(doctorEmail, EmailUtils.getAppointmentConfirmationMessage(patientName, patientEmail, date, time, reason), "APPOINTMENT REQUEST");
+        }catch(Exception e){
+            EmailUtils.handleEmailException(e);
+        }
+    }
+
     private void sendEmail(String toEmail, String content, String subject) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();

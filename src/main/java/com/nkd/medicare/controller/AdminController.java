@@ -28,18 +28,20 @@ public class AdminController {
     @PostMapping("/staff/add")
     public ResponseEntity<?> handleExcel(@RequestParam(value = "url") String url){
         System.out.println("URL: " + url);
-        List<StaffExcelData> dulieuthanhcong;
+        List<StaffExcelData> returnData;
         try{
-            dulieuthanhcong = adminService.readFromExcel(url);
+            returnData = adminService.readFromExcel(url);
         } catch (Exception e){
             System.out.println(e.getMessage());
             return ResponseEntity.badRequest().body("Error reading excel file");
         }
-        return ResponseEntity.ok(dulieuthanhcong);
+        return ResponseEntity.ok(returnData);
     }
 
-    @DeleteMapping("/staff")
+    @DeleteMapping("/staff/delete")
     public ResponseEntity<?> deleteStaff(@RequestParam("id") String staffID, @RequestParam("note") String note){
+        System.out.println("staff ID " + staffID);
+        System.out.println("Note " + note);
         adminService.deleteStaff(staffID, note);
         return ResponseEntity.ok("Staff deleted successfully");
     }

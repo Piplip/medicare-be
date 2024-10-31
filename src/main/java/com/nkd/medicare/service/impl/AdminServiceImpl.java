@@ -73,7 +73,7 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        return context.select(STAFF.STAFF_ID, PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER,
+        return context.selectDistinct(STAFF.STAFF_ID, PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER,
                         DEPARTMENT.NAME, SPECIALIZATION.NAME, STAFF.STAFF_TYPE, ACCOUNT.ACCOUNT_EMAIL, STAFF.EMP_STATUS)
                 .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
                         .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
@@ -85,6 +85,7 @@ public class AdminServiceImpl implements AdminService {
                                 .or(PERSON.FIRST_NAME.concat(" ").concat(PERSON.LAST_NAME).like("%" + name + "%")))
                             .and(condition)
                             .and(ACCOUNT.ACCOUNT_ROLE.ne(AccountAccountRole.USER)))
+                .orderBy(STAFF.STAFF_ID)
                 .limit(Integer.parseInt(pageSize))
                 .offset(((Integer.parseInt(pageNumber) - 1) * Integer.parseInt(pageSize)))
                 .fetch()
@@ -256,7 +257,7 @@ public class AdminServiceImpl implements AdminService {
     public void deleteStaff(String staffID, String note) {
         context.update(STAFF)
                 .set(STAFF.EMP_STATUS, "Inactive")
-                .set(STAFF.NOTE, note);
+                .set(STAFF.NOTE, note)
                 .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
                 .execute();
     }
