@@ -24,7 +24,6 @@ public class PaymentServiceImpl implements PaymentService {
 
     public String createVnPayPayment(HttpServletRequest request, Integer appointmentID) {
         Long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
-        System.out.println("amount: " + amount);
         String bankCode = request.getParameter("bankCode");
         Map<String, String> vnpParamsMap = vnPayConfig.getVNPayConfig(appointmentID+"");
         vnpParamsMap.put("vnp_Amount", String.valueOf(amount));

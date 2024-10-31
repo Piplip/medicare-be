@@ -2,19 +2,23 @@ package com.nkd.medicare.service.impl;
 
 import com.nkd.medicare.domain.AppointmentDTO;
 import com.nkd.medicare.domain.FeedbackDTO;
+import com.nkd.medicare.enumeration.EventType;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
+import com.nkd.medicare.event.UserEvent;
 import com.nkd.medicare.service.UserService;
 import com.nkd.medicare.tables.records.FeedbackRecord;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Objects;
 
 import static com.nkd.medicare.Tables.*;
@@ -24,6 +28,7 @@ import static com.nkd.medicare.Tables.*;
 public class UserServiceImpl implements UserService {
 
     private final DSLContext context;
+    private final ApplicationEventPublisher publisher;
 
     @Override
     public String findDoctor(String name, String department, String primaryLanguage, String specialization, String gender, String pageSize, String pageNumber) {
@@ -75,9 +80,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String makeAppointment(AppointmentDTO appointmentDTO) {
-        System.out.println("date: " + appointmentDTO.getAppointmentDate());
-        System.out.println("time: " + appointmentDTO.getAppointmentTime());
-
         Integer patientID = context.select(PATIENT.PATIENT_ID)
                 .from(ACCOUNT.join(PATIENT).on(ACCOUNT.OWNER_ID.eq(PATIENT.PATIENT_ID)))
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(appointmentDTO.getPatientEmail()))
@@ -104,6 +106,21 @@ public class UserServiceImpl implements UserService {
                     .values(appointmentID, appointmentDTO.getPatientEmail(), "patient", "en", "email", "pending")
                     .execute();
         }
+
+        String doctorEmail = context.select(ACCOUNT.ACCOUNT_EMAIL)
+                .from(ACCOUNT.join(STAFF).on(ACCOUNT.OWNER_ID.eq(STAFF.STAFF_ID)))
+                .where(STAFF.STAFF_ID.eq(Integer.parseInt(appointmentDTO.getDoctorID())))
+                .fetchOneInto(String.class);
+
+        assert doctorEmail != null;
+        Map<?, ?> data = Map.of("patientEmail", appointmentDTO.getPatientEmail(), "doctorEmail", doctorEmail,
+            "patientName", appointmentDTO.getPatientName(), "date", appointmentDTO.getAppointmentDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                , "time", appointmentDTO.getAppointmentTime().format(DateTimeFormatter.ofPattern("HH:ss")), "reason", appointmentDTO.getReason());
+        UserEvent makeAppointmentEvent = UserEvent.builder()
+                        .eventType(EventType.MAKE_APPOINTMENT)
+                        .data(data)
+                        .build();
+        publisher.publishEvent(makeAppointmentEvent);
 
         assert appointmentID != null;
         return appointmentID.toString();

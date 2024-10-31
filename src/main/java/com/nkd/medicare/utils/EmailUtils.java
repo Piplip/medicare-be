@@ -41,4 +41,23 @@ public class EmailUtils {
     public static void handleEmailException(Exception e) {
         throw new ApiException("Error sending email");
     }
+
+    public static String getAppointmentConfirmationMessage(String patientName, String patientEmail, String date, String time, String reason) {
+        return """        
+                <p>You have a new appointment request from:</p>
+                <ul>
+                    <li><strong>Patient Name:</strong> %s</li>
+                    <li><strong>Patient Email:</strong> %s</li>
+                    <li><strong>Date:</strong> %s</li>
+                    <li><strong>Time:</strong> %s</li>
+                    <li><strong>Reason for Appointment:</strong> %s</li>
+                </ul>
+    
+                <p>Please review this appointment request and confirm or reject it.</p>
+    
+                <p>Regards,</p>
+                <p>Medicare Team</p>
+            """
+                .formatted(patientName, patientEmail, date, time, reason);
+    }
 }
