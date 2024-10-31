@@ -11,7 +11,7 @@ public interface AdminService {
             , String gender, String pageSize, String pageNumber, String staffType, String status);
     List<StaffExcelData> readFromExcel(String url);
     StaffExcelData addStaff(Row Url) throws Exception;
-    void deleteStaff(String staffID);
+    void deleteStaff(String staffID, String note);
     String getStaffByID(String staffID);
     void updateStaff(StaffDTO staffDTO);
     void updateStaffProfileImage(String staffID, String imageURL);

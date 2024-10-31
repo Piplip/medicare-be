@@ -3,5 +3,6 @@ package com.nkd.medicare.enumeration;
 public enum EventType {
     REGISTRATION,
     RESET_PASSWORD,
-    RENEW_TOKEN
+    RENEW_TOKEN,
+    MAKE_APPOINTMENT
 }

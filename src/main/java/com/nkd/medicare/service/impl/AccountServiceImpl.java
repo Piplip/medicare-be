@@ -4,7 +4,7 @@ import com.nkd.medicare.domain.Credential;
 import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.enumeration.EventType;
 import com.nkd.medicare.enums.AccountAccountRole;
-import com.nkd.medicare.event.AccountEvent;
+import com.nkd.medicare.event.UserEvent;
 import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.exception.DuplicateEmailException;
 import com.nkd.medicare.service.AccountService;
@@ -286,7 +286,7 @@ public class AccountServiceImpl implements AccountService {
 
         context.insertInto(CONFIRMATION).set(newConfirmation).execute();
 
-        AccountEvent signUpEvent = new AccountEvent();
+        UserEvent signUpEvent = new UserEvent();
         signUpEvent.setEventType(eventType);
         signUpEvent.setData(Map.of("token", newConfirmation.getToken(),
                 "email", email, "expirationTime", newConfirmation.getConfirmationExpiredTime()));
