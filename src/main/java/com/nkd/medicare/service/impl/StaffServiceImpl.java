@@ -7,10 +7,7 @@ import com.nkd.medicare.domain.PrescriptionWithPatient;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.PrescribedStatus;
 import com.nkd.medicare.service.StaffService;
-import com.nkd.medicare.tables.records.AppointmentRecord;
-import com.nkd.medicare.tables.records.PersonRecord;
-import com.nkd.medicare.tables.records.PrescribedMedicationRecord;
-import com.nkd.medicare.tables.records.PrescribedRecord;
+import com.nkd.medicare.tables.records.*;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -337,15 +334,22 @@ public class StaffServiceImpl implements StaffService {
     @Override
     public PrescriptionWithPatient getPrescriptionByPharamist(Prescription prescription) {
         PrescriptionWithPatient prescriptionWithPatient = new PrescriptionWithPatient();
+        AddressRecord address = new AddressRecord();
         PersonRecord person = context.select()
                 .from(PERSON.join(PATIENT).on(PERSON.PERSON_ID.eq(PATIENT.PERSON_ID))
                             .join(APPOINTMENT).on(PATIENT.PATIENT_ID.eq(APPOINTMENT.PATIENT_ID)))
                 .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
                 .fetchOneInto(PersonRecord.class);
         if(person != null){
+            address = context.select()
+                            .from(ADDRESS)
+                            .where(ADDRESS.ADDRESS_ID.eq(person.getAddressId()))
+                            .fetchOneInto(AddressRecord.class);
             prescriptionWithPatient.setPrescription(prescription);
             prescriptionWithPatient.setPreson(person);
             prescriptionWithPatient.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
+            prescriptionWithPatient.setFullname(person.getFirstName()+person.getLastName());
+            prescriptionWithPatient.setAddress(address.getHouseNumber()+" "+address.getStreet()+" , "+address.getDistrict()+" , "+address.getCity()+" , "+address.getProvince());
             return prescriptionWithPatient;
         }
         else return prescriptionWithPatient;

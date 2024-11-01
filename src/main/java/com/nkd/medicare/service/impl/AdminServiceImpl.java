@@ -138,7 +138,11 @@ public class AdminServiceImpl implements AdminService {
                     .from(ACCOUNT)
                     .where(ACCOUNT.ID_CARD_NUMBER.eq(rowData.get(5).toString()))
                     .fetch();
-            if(!existID.isEmpty()){
+            var existLicense_Number = context.select(STAFF)
+                    .from(STAFF)
+                    .where(STAFF.LICENSE_NUMBER.eq(rowData.get(14).toString()))
+                    .fetch();
+            if(!existID.isEmpty() || !existLicense_Number.isEmpty()){
                 data.setResultType(3);
                 data.setEmail(rowData.get(0) != null ? rowData.get(0).toString() : "");
                 data.setDateOfBirth(LocalDate.parse(rowData.get(4).toString(), formatter));

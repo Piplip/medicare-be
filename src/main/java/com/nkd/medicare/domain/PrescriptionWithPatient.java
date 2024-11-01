@@ -16,6 +16,8 @@ import java.util.List;
 @AllArgsConstructor
 public class PrescriptionWithPatient implements Serializable {
     private String age;
+    private String fullname;
+    private String address;
     private PersonRecord preson;
     private Prescription prescription;
 }
