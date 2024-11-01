@@ -21,8 +21,8 @@ public class WebSocketController {
     private final StaffService staffService;
 
     @MessageMapping("/create/prescription2")
-    @SendTo("/staffconversation")
-    public Prescription handlePrescribed(@RequestBody Prescription prescription, HttpServletRequest request) {
+    @SendTo("/pharmacist")
+    public ResponseEntity<?> handlePrescribed(@RequestBody Prescription prescription, HttpServletRequest request) {
             Cookie[] cookies = request.getCookies();
             String staffID = null;
 
@@ -34,6 +34,6 @@ public class WebSocketController {
                     }
                 }
             }
-            return staffService.createPrescription(prescription, staffID);
+            return ResponseEntity.ok(staffService.getPrescriptionByPharamist(prescription));
     }
 }

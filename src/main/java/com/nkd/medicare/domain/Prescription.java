@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -17,7 +18,7 @@ public class Prescription implements Serializable {
 
     private String appointmentID;
     private String diagnosis;
-    private LocalDate prescribedDate;
+    private LocalDateTime prescribedDate;
     private String doctorName;
     private List<MedicationDTO> medicationList;
     private String status;

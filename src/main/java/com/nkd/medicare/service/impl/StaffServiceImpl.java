@@ -3,6 +3,7 @@ package com.nkd.medicare.service.impl;
 import com.google.gson.Gson;
 import com.nkd.medicare.domain.MedicationDTO;
 import com.nkd.medicare.domain.Prescription;
+import com.nkd.medicare.domain.PrescriptionWithPatient;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.PrescribedStatus;
 import com.nkd.medicare.service.StaffService;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
@@ -43,8 +45,8 @@ public class StaffServiceImpl implements StaffService {
     @Override
     public String getAppointments(String staffID) {
         return context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.PATIENT_ID, APPOINTMENT.REASON, APPOINTMENT.DATE, APPOINTMENT.TIME, PERSON.FIRST_NAME
-                , PERSON.LAST_NAME, PERSON.DATE_OF_BIRTH, PERSON.GENDER, ADDRESS.HOUSE_NUMBER, ADDRESS.STREET, ADDRESS.DISTRICT, ADDRESS.CITY, ADDRESS.PROVINCE,
-                APPOINTMENT.STATUS)
+                        , PERSON.LAST_NAME, PERSON.DATE_OF_BIRTH, PERSON.GENDER, ADDRESS.HOUSE_NUMBER, ADDRESS.STREET, ADDRESS.DISTRICT, ADDRESS.CITY, ADDRESS.PROVINCE,
+                        APPOINTMENT.STATUS)
                 .from(APPOINTMENT.join(PATIENT).on(APPOINTMENT.PATIENT_ID.eq(PATIENT.PATIENT_ID))
                         .join(PERSON).on(PERSON.PERSON_ID.eq(PATIENT.PERSON_ID))
                         .join(ADDRESS).on(PERSON.ADDRESS_ID.eq(ADDRESS.ADDRESS_ID)))
@@ -90,21 +92,21 @@ public class StaffServiceImpl implements StaffService {
                 checkDay = (int) ChronoUnit.DAYS.between(start, end) + 1;
                 condition = condition.and(APPOINTMENT.DATE.between(start, end));
             } else {
-                appointmentDate = LocalDate.of(appointmentDate.getYear() + 1,10,30);
+                appointmentDate = LocalDate.of(appointmentDate.getYear() + 1, 10, 30);
                 checkDay = (int) ChronoUnit.DAYS.between(start, appointmentDate) + 1;
                 condition = condition.and(APPOINTMENT.DATE.greaterOrEqual(start));
             }
 
-            if(checkDay >= 15) checkDay = 14;
+            if (checkDay >= 15) checkDay = 14;
             for (int i = 0; i < checkDay; i++) {
                 weekDates.add(start.plusDays(i));
             }
         } else if (endDate != null) {
             end = LocalDate.parse(endDate, formatter);
-            appointmentDate = LocalDate.of(appointmentDate.getYear()-1,10,30);
-            checkDay = (int) ChronoUnit.DAYS.between(appointmentDate, end)+1;
+            appointmentDate = LocalDate.of(appointmentDate.getYear() - 1, 10, 30);
+            checkDay = (int) ChronoUnit.DAYS.between(appointmentDate, end) + 1;
             condition = condition.and(APPOINTMENT.DATE.lessOrEqual(end));
-            if(checkDay >= 15) checkDay = 14;
+            if (checkDay >= 15) checkDay = 14;
             for (int i = 0; i < checkDay; i++) {
                 weekDates.add(end.minusDays(i));
             }
@@ -128,11 +130,11 @@ public class StaffServiceImpl implements StaffService {
             if (typeAppointment.equals("w")) {
                 if (weekDates.contains(appointment.getDate())) {
                     dayOfWeek = appointment.getDate().getDayOfWeek();
-                    if(start != null || end != null){
-                        if (map.containsKey(appointment.getDate().toString())) map.replace(appointment.getDate().toString(), map.get(appointment.getDate().toString())+1);
+                    if (start != null || end != null) {
+                        if (map.containsKey(appointment.getDate().toString()))
+                            map.replace(appointment.getDate().toString(), map.get(appointment.getDate().toString()) + 1);
                         else map.put(appointment.getDate().toString(), 1);
-                    }
-                    else{
+                    } else {
                         dayName = dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH).toLowerCase();
                         if (map.containsKey(dayName)) map.replace(dayName, map.get(dayName) + 1);
                         else map.put(dayName, 1);
@@ -164,9 +166,8 @@ public class StaffServiceImpl implements StaffService {
             }
             if (appointment.getStatus().equals(AppointmentStatus.CANCELLED)) {
                 map.replace("cancelAppointments", map.get("cancelAppointments") + 1);
-            }
-            else {
-                if(start != null && end != null && start.isAfter(end)) {
+            } else {
+                if (start != null && end != null && start.isAfter(end)) {
                     decreaseAppointment++;
                     continue;
                 }
@@ -199,7 +200,7 @@ public class StaffServiceImpl implements StaffService {
             appointments = context.selectFrom(APPOINTMENT)
                     .where(APPOINTMENT.PHYSICIAN_ID.eq(Integer.parseInt(staffID)))
                     .fetchInto(AppointmentRecord.class);
-            for(AppointmentRecord eachAppointment : appointments) {
+            for (AppointmentRecord eachAppointment : appointments) {
                 String month = eachAppointment.getDate().getMonth().toString();
                 if (map.containsKey(month)) map.replace(month, map.get(month) + 1);
                 else map.put(month, 0);
@@ -220,10 +221,11 @@ public class StaffServiceImpl implements StaffService {
 
     @Override
     public Prescription createPrescription(Prescription prescription, String staffID) {
-        if(prescription.getAppointmentID() == null || prescription.getDiagnosis() == null || prescription.getDiagnosis().isEmpty()) return null;
-        else{
-            for (MedicationDTO e : prescription.getMedicationList()){
-                if(e.getName() == null || e.getDosage() == null || e.getRoute() == null || e.getStartDate() == null || e.getEndDate() == null || e.getFrequency() == null){
+        if (prescription.getAppointmentID() == null || prescription.getDiagnosis() == null || prescription.getDiagnosis().isEmpty())
+            return null;
+        else {
+            for (MedicationDTO e : prescription.getMedicationList()) {
+                if (e.getName() == null || e.getDosage() == null || e.getRoute() == null || e.getStartDate() == null || e.getEndDate() == null || e.getFrequency() == null) {
                     return null;
                 }
             }
@@ -231,17 +233,17 @@ public class StaffServiceImpl implements StaffService {
 
         PrescribedMedicationRecord prescribedMedication = new PrescribedMedicationRecord();
         try {
-            String physicianName = context.select(PERSON.LAST_NAME)
+            PersonRecord physicianName = context.select()
                     .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID)))
                     .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
-                    .fetchOneInto(String.class);
+                    .fetchOneInto(PersonRecord.class);
 
             PrescribedRecord prescribed = Objects.requireNonNull(context.insertInto(PRESCRIBED)
-                    .set(PRESCRIBED.PRESCRIBED_DATE, LocalDate.now())
-                    .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicianName)
+                    .set(PRESCRIBED.PRESCRIBED_DATE, LocalDateTime.now())
+                    .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicianName.getFirstName() + physicianName.getLastName())
                     .set(PRESCRIBED.QUANTITY, ((byte) prescription.getMedicationList().size()))
                     .set(PRESCRIBED.DIAGNOSIS, prescription.getDiagnosis())
-                    //.set(PRESCRIBED.STATUS, PrescribedStatus.PENDING)
+                    .set(PRESCRIBED.STATUS, PrescribedStatus.PENDING)
                     .returning().fetchAny());
 
             for (MedicationDTO e : prescription.getMedicationList()) {
@@ -279,25 +281,25 @@ public class StaffServiceImpl implements StaffService {
             return null;
         }
     }
+
     @Override
     public Prescription showPrescription(String appointmentID) {
         List<MedicationDTO> Medicationlist = new ArrayList<>();
         List<PrescribedMedicationRecord> Medicationtemplist = new ArrayList<>();
         Prescription prescription = new Prescription();
-        MedicationDTO medication = new MedicationDTO();
         PrescribedRecord prescribed = null;
 
         prescribed = context.select()
-                    .from(PRESCRIBED.join(APPOINTMENT).on(PRESCRIBED.PRESCRIBED_ID.eq(APPOINTMENT.PRESCRIBED_ID)))
-                    .where(APPOINTMENT.PRESCRIBED_ID.eq(Integer.parseInt(appointmentID)))
-                    .fetchOneInto(PrescribedRecord.class);
-        if(prescribed != null) {
+                .from(APPOINTMENT.join(PRESCRIBED).on(APPOINTMENT.PRESCRIBED_ID.eq(PRESCRIBED.PRESCRIBED_ID)))
+                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(appointmentID)))
+                .fetchOneInto(PrescribedRecord.class);
+        if (prescribed != null) {
             Medicationtemplist = context.select()
                     .from(PRESCRIBED_MEDICATION.join(PRESCRIBED_MEDICATION_LIST).on(PRESCRIBED_MEDICATION.PRESRCIBED_MEDICATION_ID.eq(PRESCRIBED_MEDICATION_LIST.PRESRCIBED_MEDICATION_ID)))
                     .where(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
                     .fetchInto(PrescribedMedicationRecord.class);
             for (PrescribedMedicationRecord e : Medicationtemplist) {
-
+                MedicationDTO medication = new MedicationDTO();
                 medication.setName(context.select(MEDICATION.NAME).from(MEDICATION)
                         .where(MEDICATION.MEDICATION_ID.eq(e.getMedicationId())).fetchOneInto(String.class));
                 medication.setRoute(e.getRoute());
@@ -308,12 +310,44 @@ public class StaffServiceImpl implements StaffService {
                 medication.setEndDate(e.getEndDate().toString());
                 Medicationlist.add(medication);
             }
-        }
-        else{
+        } else {
             return null;
         }
+        prescription.setAppointmentID(appointmentID);
+        prescription.setDoctorName(prescribed.getPrescribingPhysicianName());
+        prescription.setStatus(prescribed.getStatus().toString());
         prescription.setMedicationList(Medicationlist);
         prescription.setDiagnosis(prescribed.getDiagnosis());
+        prescription.setPrescribedDate(prescribed.getPrescribedDate());
         return prescription;
+    }
+
+    @Override
+    public Integer editPrescribed(String prescribedID) {
+        if (prescribedID != null) {
+            int checkStatus = context.update(PRESCRIBED)
+                    .set(PRESCRIBED.STATUS, PrescribedStatus.PENDING)
+                    .where(PRESCRIBED.PRESCRIBED_ID.eq(Integer.parseInt(prescribedID)))
+                    .execute();
+            if(checkStatus == 0) return 0;
+        }
+        return 1;
+    }
+
+    @Override
+    public PrescriptionWithPatient getPrescriptionByPharamist(Prescription prescription) {
+        PrescriptionWithPatient prescriptionWithPatient = new PrescriptionWithPatient();
+        PersonRecord person = context.select()
+                .from(PERSON.join(PATIENT).on(PERSON.PERSON_ID.eq(PATIENT.PERSON_ID))
+                            .join(APPOINTMENT).on(PATIENT.PATIENT_ID.eq(APPOINTMENT.PATIENT_ID)))
+                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
+                .fetchOneInto(PersonRecord.class);
+        if(person != null){
+            prescriptionWithPatient.setPrescription(prescription);
+            prescriptionWithPatient.setPreson(person);
+            prescriptionWithPatient.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
+            return prescriptionWithPatient;
+        }
+        else return prescriptionWithPatient;
     }
 }

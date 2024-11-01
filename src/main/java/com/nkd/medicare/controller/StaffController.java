@@ -58,6 +58,11 @@ public class StaffController {
         String staffID = getCookie(request);
         return ResponseEntity.ok(staffService.showPrescription(appointmentID));
     }
+    @PostMapping("/edit/prescription")
+    public ResponseEntity<?> editMedication(@RequestParam("prescribedID") String prescribedID, HttpServletRequest request){
+        String staffID = getCookie(request);
+        return ResponseEntity.ok(staffService.editPrescribed(prescribedID));
+    }
     private String getCookie(HttpServletRequest request){
         Cookie[] cookies = request.getCookies();
 
