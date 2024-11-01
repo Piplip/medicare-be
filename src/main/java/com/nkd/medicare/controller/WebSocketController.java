@@ -34,6 +34,6 @@ public class WebSocketController {
                     }
                 }
             }
-            return ResponseEntity.ok(staffService.getPrescriptionByPharamist(prescription));
+            return ResponseEntity.ok(staffService.createPrescription(prescription,staffID));
     }
 }

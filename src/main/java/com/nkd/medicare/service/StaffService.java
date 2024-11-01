@@ -1,7 +1,6 @@
 package com.nkd.medicare.service;
 
 import com.nkd.medicare.domain.Prescription;
-import com.nkd.medicare.domain.PrescriptionWithPatient;
 
 import java.util.List;
 
@@ -13,5 +12,5 @@ public interface StaffService {
     Prescription createPrescription(Prescription prescription, String staffID);
     Prescription showPrescription(String appointmentID);
     Integer editPrescribed(String prescribedID);
-    PrescriptionWithPatient getPrescriptionByPharamist(Prescription prescription);
+
 }

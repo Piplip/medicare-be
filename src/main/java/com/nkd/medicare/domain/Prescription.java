@@ -15,7 +15,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Prescription implements Serializable {
-
+    private String age;
+    private String fullname;
+    private String address;
+    private LocalDate dateOfBirth;
+    private String phoneNumber;
+    private String gender;
     private String appointmentID;
     private String diagnosis;
     private LocalDateTime prescribedDate;

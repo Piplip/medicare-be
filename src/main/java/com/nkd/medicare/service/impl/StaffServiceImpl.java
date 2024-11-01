@@ -3,7 +3,6 @@ package com.nkd.medicare.service.impl;
 import com.google.gson.Gson;
 import com.nkd.medicare.domain.MedicationDTO;
 import com.nkd.medicare.domain.Prescription;
-import com.nkd.medicare.domain.PrescriptionWithPatient;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.PrescribedStatus;
 import com.nkd.medicare.service.StaffService;
@@ -237,7 +236,7 @@ public class StaffServiceImpl implements StaffService {
 
             PrescribedRecord prescribed = Objects.requireNonNull(context.insertInto(PRESCRIBED)
                     .set(PRESCRIBED.PRESCRIBED_DATE, LocalDateTime.now())
-                    .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicianName.getFirstName() + physicianName.getLastName())
+                    .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicianName.getFirstName() +" "+ physicianName.getLastName())
                     .set(PRESCRIBED.QUANTITY, ((byte) prescription.getMedicationList().size()))
                     .set(PRESCRIBED.DIAGNOSIS, prescription.getDiagnosis())
                     .set(PRESCRIBED.STATUS, PrescribedStatus.PENDING)
@@ -267,11 +266,10 @@ public class StaffServiceImpl implements StaffService {
                     .set(APPOINTMENT.STATUS, AppointmentStatus.DONE)
                     .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
                     .execute();
-
             prescription.setStatus(prescribed.getStatus().name());
             prescription.setDoctorName(prescribed.getPrescribingPhysicianName());
             prescription.setPrescribedDate(prescribed.getPrescribedDate());
-
+            prescription.setAge(String.valueOf(LocalDate.now().getYear() - prescription.getDateOfBirth().getYear()));
             return prescription;
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -329,29 +327,5 @@ public class StaffServiceImpl implements StaffService {
             if(checkStatus == 0) return 0;
         }
         return 1;
-    }
-
-    @Override
-    public PrescriptionWithPatient getPrescriptionByPharamist(Prescription prescription) {
-        PrescriptionWithPatient prescriptionWithPatient = new PrescriptionWithPatient();
-        AddressRecord address = new AddressRecord();
-        PersonRecord person = context.select()
-                .from(PERSON.join(PATIENT).on(PERSON.PERSON_ID.eq(PATIENT.PERSON_ID))
-                            .join(APPOINTMENT).on(PATIENT.PATIENT_ID.eq(APPOINTMENT.PATIENT_ID)))
-                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
-                .fetchOneInto(PersonRecord.class);
-        if(person != null){
-            address = context.select()
-                            .from(ADDRESS)
-                            .where(ADDRESS.ADDRESS_ID.eq(person.getAddressId()))
-                            .fetchOneInto(AddressRecord.class);
-            prescriptionWithPatient.setPrescription(prescription);
-            prescriptionWithPatient.setPreson(person);
-            prescriptionWithPatient.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
-            prescriptionWithPatient.setFullname(person.getFirstName()+person.getLastName());
-            prescriptionWithPatient.setAddress(address.getHouseNumber()+" "+address.getStreet()+" , "+address.getDistrict()+" , "+address.getCity()+" , "+address.getProvince());
-            return prescriptionWithPatient;
-        }
-        else return prescriptionWithPatient;
     }
 }
