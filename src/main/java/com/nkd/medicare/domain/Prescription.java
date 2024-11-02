@@ -22,6 +22,7 @@ public class Prescription implements Serializable {
     private String phoneNumber;
     private String gender;
     private String appointmentID;
+    private String prescribedID;
     private String diagnosis;
     private LocalDateTime prescribedDate;
     private String doctorName;

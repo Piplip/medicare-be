@@ -266,10 +266,25 @@ public class StaffServiceImpl implements StaffService {
                     .set(APPOINTMENT.STATUS, AppointmentStatus.DONE)
                     .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
                     .execute();
-            prescription.setStatus(prescribed.getStatus().name());
+            AddressRecord address ;
+            PersonRecord person = context.select()
+                    .from(PERSON.join(PATIENT).on(PERSON.PERSON_ID.eq(PATIENT.PERSON_ID))
+                            .join(APPOINTMENT).on(PATIENT.PATIENT_ID.eq(APPOINTMENT.PATIENT_ID)))
+                    .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
+                    .fetchOneInto(PersonRecord.class);
+            address = context.select()
+                    .from(ADDRESS)
+                    .where(ADDRESS.ADDRESS_ID.eq(person.getAddressId()))
+                    .fetchOneInto(AddressRecord.class);
+            prescription.setPrescribedID(prescribed.getPrescribedId().toString());
+            prescription.setDateOfBirth(person.getDateOfBirth());
+            prescription.setPhoneNumber(person.getPhoneNumber());
             prescription.setDoctorName(prescribed.getPrescribingPhysicianName());
+            prescription.setGender(person.getGender());
             prescription.setPrescribedDate(prescribed.getPrescribedDate());
-            prescription.setAge(String.valueOf(LocalDate.now().getYear() - prescription.getDateOfBirth().getYear()));
+            prescription.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
+            prescription.setFullname(person.getFirstName()+person.getLastName());
+            prescription.setAddress(address.getHouseNumber()+" "+address.getStreet()+" , "+address.getDistrict()+" , "+address.getCity()+" , "+address.getProvince());
             return prescription;
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -315,6 +330,7 @@ public class StaffServiceImpl implements StaffService {
         prescription.setDiagnosis(prescribed.getDiagnosis());
         prescription.setPrescribedDate(prescribed.getPrescribedDate());
         return prescription;
+
     }
 
     @Override

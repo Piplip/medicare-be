@@ -2,6 +2,7 @@ package com.nkd.medicare.controller;
 
 import com.nkd.medicare.domain.MedicationDTO;
 import com.nkd.medicare.domain.Prescription;
+import com.nkd.medicare.service.PharmacistService;
 import com.nkd.medicare.service.StaffService;
 import com.nkd.medicare.service.impl.StaffServiceImpl;
 import jakarta.servlet.http.Cookie;
@@ -19,21 +20,34 @@ import java.util.List;
 @RequestMapping("/api/staff")
 public class WebSocketController {
     private final StaffService staffService;
+    private final PharmacistService pharmacistService;
 
-    @MessageMapping("/create/prescription2")
+
+    @MessageMapping("/create/prescription")
     @SendTo("/pharmacist")
     public ResponseEntity<?> handlePrescribed(@RequestBody Prescription prescription, HttpServletRequest request) {
-            Cookie[] cookies = request.getCookies();
-            String staffID = null;
-
-            if (cookies != null) {
-                for (Cookie c : cookies) {
-                    if ("STAFF-ID".equals(c.getName())) {
-                        staffID = c.getValue();
-                        break;
-                    }
-                }
-            }
+            String staffID = getCookie(request);
             return ResponseEntity.ok(staffService.createPrescription(prescription,staffID));
+    }
+//    @MessageMapping("/get/prescription")
+//    @SendTo("/pharmacist")
+//    public ResponseEntity<?> handleReadyAddPrescribed(@RequestBody Prescription prescription, HttpServletRequest request){
+//        String staffID = getCookie(request);
+//        return ResponseEntity.ok(staffService.showPrescription(appointmentID));
+//    }
+    @MessageMapping("/complete/prescription")
+    @SendTo("/pharmacist")
+    public ResponseEntity<?> handleCompletePrescribed(@RequestParam("prescribedID") String prescribedID) {
+        return ResponseEntity.ok(pharmacistService.completePrescribed(prescribedID));
+    }
+    private String getCookie(HttpServletRequest request){
+        Cookie[] cookies = request.getCookies();
+        if(cookies != null){
+            for (Cookie c : cookies){
+                if(c.getName().equals("STAFF-ID"))
+                    return c.getValue();
+            }
+        }
+        return null;
     }
 }
