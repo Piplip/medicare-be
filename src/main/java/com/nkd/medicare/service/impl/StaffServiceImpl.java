@@ -365,6 +365,9 @@ public class StaffServiceImpl implements StaffService {
                             .join(PRESCRIBED).on(APPOINTMENT.PRESCRIBED_ID.eq(prescribed.getPrescribedId())))
                     .where(PRESCRIBED.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
                     .fetchOneInto(PersonRecord.class);
+            String appointmentID = context.select(APPOINTMENT.APPOINTMENT_ID)
+                    .from(APPOINTMENT).where(APPOINTMENT.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
+                    .fetchOneInto(String.class);
             assert person != null;
             AddressRecord address = context.select()
                     .from(ADDRESS)
@@ -394,6 +397,7 @@ public class StaffServiceImpl implements StaffService {
             prescription.setPrescribedID(prescribed.getPrescribedId().toString());
             prescription.setDateOfBirth(person.getDateOfBirth());
             prescription.setPhoneNumber(person.getPhoneNumber());
+            prescription.setAppointmentID(appointmentID);
             prescription.setDoctorName(prescribed.getPrescribingPhysicianName());
             prescription.setGender(person.getGender());
             prescription.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
