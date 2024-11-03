@@ -12,5 +12,5 @@ public interface StaffService {
     Prescription createPrescription(Prescription prescription, String staffID);
     Prescription showPrescription(String appointmentID);
     Integer editPrescribed(String prescribedID);
-
+    List<Prescription> getAllPrescription();
 }

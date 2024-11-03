@@ -194,7 +194,7 @@ public class AccountServiceImpl implements AccountService {
         UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(credential.getEmail(), credential.getPassword());
         authenticationManager.authenticate(token);
 
-        Object[] staffInfo = context.select(STAFF.STAFF_ID, STAFF.PERSON_ID, STAFF.STAFF_IMAGE)
+        Object[] staffInfo = context.select(STAFF.STAFF_ID, STAFF.PERSON_ID, STAFF.STAFF_IMAGE,STAFF.STAFF_TYPE)
                 .from(STAFF)
                 .where(STAFF.STAFF_ID.eq(accountRecord.getOwnerId()))
                 .fetchOneArray();

@@ -48,7 +48,10 @@ public class UserController {
     ){
         return ResponseEntity.ok(userService.getAppointmentList(email, status, query, department, startDate, endDate));
     }
-
+    @GetMapping("/appointments/prescription")
+    public ResponseEntity<?> getPrescription(@RequestParam("appointmentID") String appointmentID){
+            return ResponseEntity.ok(userService.getPrescripton(appointmentID));
+    }
     @PostMapping("/feedback")
     public ResponseEntity<?> postFeedback(@RequestBody FeedbackDTO feedbackDTO, @RequestParam("email") String email){
         userService.postFeedback(feedbackDTO, email);

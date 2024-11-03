@@ -226,6 +226,10 @@ public class StaffServiceImpl implements StaffService {
                 }
             }
         }
+//        String prescribedID = context.select(PRESCRIBED.STATUS)
+//                .from(PRESCRIBED.join(APPOINTMENT).on(PRESCRIBED.PRESCRIBED_ID.eq(APPOINTMENT.PRESCRIBED_ID)))
+//                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
+//                .fetchOneInto(String.class);
 
         PrescribedMedicationRecord prescribedMedication = new PrescribedMedicationRecord();
         try {
@@ -281,7 +285,7 @@ public class StaffServiceImpl implements StaffService {
             prescription.setPhoneNumber(person.getPhoneNumber());
             prescription.setDoctorName(prescribed.getPrescribingPhysicianName());
             prescription.setGender(person.getGender());
-            prescription.setPrescribedDate(prescribed.getPrescribedDate());
+            prescription.setPrescribedTime(prescribed.getPrescribedDate());
             prescription.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
             prescription.setFullname(person.getFirstName()+person.getLastName());
             prescription.setAddress(address.getHouseNumber()+" "+address.getStreet()+" , "+address.getDistrict()+" , "+address.getCity()+" , "+address.getProvince());
@@ -328,7 +332,7 @@ public class StaffServiceImpl implements StaffService {
         prescription.setStatus(prescribed.getStatus().toString());
         prescription.setMedicationList(Medicationlist);
         prescription.setDiagnosis(prescribed.getDiagnosis());
-        prescription.setPrescribedDate(prescribed.getPrescribedDate());
+        prescription.setPrescribedTime(prescribed.getPrescribedDate());
         return prescription;
 
     }
@@ -344,4 +348,61 @@ public class StaffServiceImpl implements StaffService {
         }
         return 1;
     }
+
+    @Override
+    public List<Prescription> getAllPrescription() {
+        List<Prescription> listPrescription = new ArrayList<>();
+        List<PrescribedMedicationRecord> Medicationtemplist;
+        List<PrescribedRecord> listPrescribed = context.select()
+                .from(PRESCRIBED)
+                .where(PRESCRIBED.STATUS.eq(PrescribedStatus.PENDING))
+                .fetchInto(PrescribedRecord.class);
+        for(PrescribedRecord prescribed: listPrescribed){
+            List<MedicationDTO> Medicationlist = new ArrayList<>();
+            PersonRecord person = context.select()
+                    .from(PERSON.join(PATIENT).on(PERSON.PERSON_ID.eq(PATIENT.PERSON_ID))
+                            .join(APPOINTMENT).on(PATIENT.PATIENT_ID.eq(APPOINTMENT.PATIENT_ID))
+                            .join(PRESCRIBED).on(APPOINTMENT.PRESCRIBED_ID.eq(prescribed.getPrescribedId())))
+                    .where(PRESCRIBED.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
+                    .fetchOneInto(PersonRecord.class);
+            assert person != null;
+            AddressRecord address = context.select()
+                    .from(ADDRESS)
+                    .where(ADDRESS.ADDRESS_ID.eq(person.getAddressId()))
+                    .fetchOneInto(AddressRecord.class);
+            Medicationtemplist = context.select()
+                    .from(PRESCRIBED_MEDICATION.join(PRESCRIBED_MEDICATION_LIST).on(PRESCRIBED_MEDICATION.PRESRCIBED_MEDICATION_ID.eq(PRESCRIBED_MEDICATION_LIST.PRESRCIBED_MEDICATION_ID)))
+                    .where(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
+                    .fetchInto(PrescribedMedicationRecord.class);
+            for (PrescribedMedicationRecord e : Medicationtemplist) {
+                MedicationDTO medication = new MedicationDTO();
+                medication.setName(context.select(MEDICATION.NAME).from(MEDICATION)
+                        .where(MEDICATION.MEDICATION_ID.eq(e.getMedicationId())).fetchOneInto(String.class));
+                medication.setRoute(e.getRoute());
+                medication.setFrequency(e.getFrequency());
+                medication.setDosage(e.getDosage());
+                medication.setNote(e.getPhysicianNote());
+                medication.setStartDate(e.getStartDate().toString());
+                medication.setEndDate(e.getEndDate().toString());
+                Medicationlist.add(medication);
+            }
+            Prescription prescription = new Prescription();
+            prescription.setStatus(prescribed.getStatus().toString());
+            prescription.setMedicationList(Medicationlist);
+            prescription.setDiagnosis(prescribed.getDiagnosis());
+            prescription.setPrescribedTime(prescribed.getPrescribedDate());
+            prescription.setPrescribedID(prescribed.getPrescribedId().toString());
+            prescription.setDateOfBirth(person.getDateOfBirth());
+            prescription.setPhoneNumber(person.getPhoneNumber());
+            prescription.setDoctorName(prescribed.getPrescribingPhysicianName());
+            prescription.setGender(person.getGender());
+            prescription.setAge(String.valueOf((LocalDate.now().getYear() - person.getDateOfBirth().getYear())));
+            prescription.setFullname(person.getFirstName()+person.getLastName());
+            assert address != null;
+            prescription.setAddress(address.getHouseNumber()+" "+address.getStreet()+" , "+address.getDistrict()+" , "+address.getCity()+" , "+address.getProvince());
+            listPrescription.add(prescription);
+        }
+        return listPrescription;
+    }
+
 }

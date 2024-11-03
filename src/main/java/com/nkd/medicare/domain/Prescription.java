@@ -24,7 +24,7 @@ public class Prescription implements Serializable {
     private String appointmentID;
     private String prescribedID;
     private String diagnosis;
-    private LocalDateTime prescribedDate;
+    private LocalDateTime prescribedTime;
     private String doctorName;
     private List<MedicationDTO> medicationList;
     private String status;

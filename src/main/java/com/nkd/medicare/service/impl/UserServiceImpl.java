@@ -2,6 +2,7 @@ package com.nkd.medicare.service.impl;
 
 import com.nkd.medicare.domain.AppointmentDTO;
 import com.nkd.medicare.domain.FeedbackDTO;
+import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.enumeration.EventType;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
@@ -29,6 +30,7 @@ public class UserServiceImpl implements UserService {
 
     private final DSLContext context;
     private final ApplicationEventPublisher publisher;
+    private final StaffServiceImpl showPrescripton;
 
     @Override
     public String findDoctor(String name, String department, String primaryLanguage, String specialization, String gender, String pageSize, String pageNumber) {
@@ -211,6 +213,11 @@ public class UserServiceImpl implements UserService {
                 .from(ACCOUNT.join(FEEDBACK).on(ACCOUNT.ACCOUNT_ID.eq(FEEDBACK.ACCOUNT_ID)))
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
                 .fetch().formatJSON();
+    }
+
+    @Override
+    public Prescription getPrescripton(String appointmentID) {
+        return showPrescripton.showPrescription(appointmentID);
     }
 
 }
