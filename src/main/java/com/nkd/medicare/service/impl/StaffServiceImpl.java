@@ -60,10 +60,12 @@ public class StaffServiceImpl implements StaffService {
         map.put("male", 0);
         map.put("female", 0);
         map.put("other", 0);
+        map.put("allPatient", 0);
         map.put("age0_2", 0);
         map.put("age2_18", 0);
         map.put("age18_49", 0);
         map.put("age50", 0);
+        map.put("done", 0);
 
         Condition condition = DSL.trueCondition();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -124,15 +126,26 @@ public class StaffServiceImpl implements StaffService {
         int decreaseAppointment = 0;
         for (AppointmentRecord appointment : appointments) {
             if (typeAppointment.equals("w")) {
-                if (weekDates.contains(appointment.getDate())) {
+                if (weekDates.contains(appointment.getDate())){
                     dayOfWeek = appointment.getDate().getDayOfWeek();
                     if (start != null || end != null) {
-                        if (map.containsKey(appointment.getDate().toString()))
+                        if (map.containsKey(appointment.getDate().toString())){
                             map.replace(appointment.getDate().toString(), map.get(appointment.getDate().toString()) + 1);
+                            if(appointment.getStatus().equals(AppointmentStatus.DONE) && map.containsKey(appointment.getDate().toString()+"Done"))  map.replace(appointment.getDate().toString()+"Done", map.get(appointment.getDate().toString()+"Done") + 1);
+                            else map.put(appointment.getDate().toString()+"Done", 1);
+                            if(appointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP) && map.containsKey(appointment.getDate().toString()+"NotShowUp"))  map.replace(appointment.getDate().toString()+"NotShowUp", map.get(appointment.getDate().toString()+"NotShowUp") + 1);
+                            else map.put(appointment.getDate().toString()+"NotShowUp", 1);
+                        }
                         else map.put(appointment.getDate().toString(), 1);
                     } else {
                         dayName = dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH).toLowerCase();
-                        if (map.containsKey(dayName)) map.replace(dayName, map.get(dayName) + 1);
+                        if (map.containsKey(dayName)){
+                            map.replace(dayName, map.get(dayName) + 1);
+                            if(appointment.getStatus().equals(AppointmentStatus.DONE) && map.containsKey(dayName+"Done"))  map.replace(dayName+"Done", map.get(dayName+"Done") + 1);
+                            else map.put(dayName+"Done", 1);
+                            if(appointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP) && map.containsKey(dayName+"NotShowUp"))  map.replace(dayName+"NotShowUp", map.get(dayName+"NotShowUp") + 1);
+                            else map.put(dayName+"NotShowUp", 1);
+                        }
                         else map.put(dayName, 1);
                     }
                 }
@@ -189,6 +202,7 @@ public class StaffServiceImpl implements StaffService {
                     else if (checkAge <= 18) map.replace("age2_18", map.get("age2_18") + 1);
                     else if (checkAge <= 49) map.replace("age18_49", map.get("age18_49") + 1);
                     else map.replace("age50", map.get("age50") + 1);
+
                 }
             }
         }
@@ -203,6 +217,8 @@ public class StaffServiceImpl implements StaffService {
             }
         }
         map.put("totalAppointment", appointments.size() - decreaseAppointment);
+        map.replace("allPatientDone", map.get("female")+map.get("male")+map.get("other"));
+        map.replace("done", map.get("totalAppointment")-map.get("notShowedUp")-map.get("cancelAppointments"));
         Gson gson = new Gson();
         return gson.toJson(map);
     }
@@ -226,19 +242,36 @@ public class StaffServiceImpl implements StaffService {
                 }
             }
         }
-//        String prescribedID = context.select(PRESCRIBED.STATUS)
-//                .from(PRESCRIBED.join(APPOINTMENT).on(PRESCRIBED.PRESCRIBED_ID.eq(APPOINTMENT.PRESCRIBED_ID)))
-//                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
-//                .fetchOneInto(String.class);
+        PrescribedRecord prescribed = context.select()
+                .from(PRESCRIBED.join(APPOINTMENT).on(PRESCRIBED.PRESCRIBED_ID.eq(APPOINTMENT.PRESCRIBED_ID)))
+                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(prescription.getAppointmentID())))
+                .fetchOneInto(PrescribedRecord.class);
+        assert prescribed != null;
+        if(prescribed.getStatus().equals(PrescribedStatus.DONE)){
+            List<Integer> Medicationtemplist;
+            Medicationtemplist = context.select(PRESCRIBED_MEDICATION.PRESRCIBED_MEDICATION_ID)
+                    .from(PRESCRIBED_MEDICATION.join(PRESCRIBED_MEDICATION_LIST).on(PRESCRIBED_MEDICATION.PRESRCIBED_MEDICATION_ID.eq(PRESCRIBED_MEDICATION_LIST.PRESRCIBED_MEDICATION_ID)))
+                    .where(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
+                    .fetchInto(Integer.class);
+            context.deleteFrom(PRESCRIBED_MEDICATION)
+                    .where(PRESCRIBED_MEDICATION.PRESRCIBED_MEDICATION_ID.in(Medicationtemplist))
+                    .execute();
+            context.deleteFrom(PRESCRIBED_MEDICATION_LIST)
+                    .where(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
+                    .execute();
+            context.deleteFrom(PRESCRIBED)
+                    .where(PRESCRIBED.PRESCRIBED_ID.eq(prescribed.getPrescribedId()))
+                    .execute();
 
+        }
         PrescribedMedicationRecord prescribedMedication = new PrescribedMedicationRecord();
         try {
             PersonRecord physicianName = context.select()
                     .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID)))
                     .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
                     .fetchOneInto(PersonRecord.class);
-
-            PrescribedRecord prescribed = Objects.requireNonNull(context.insertInto(PRESCRIBED)
+            prescribed = new PrescribedRecord();
+            prescribed = Objects.requireNonNull(context.insertInto(PRESCRIBED)
                     .set(PRESCRIBED.PRESCRIBED_DATE, LocalDateTime.now())
                     .set(PRESCRIBED.PRESCRIBING_PHYSICIAN_NAME, physicianName.getFirstName() +" "+ physicianName.getLastName())
                     .set(PRESCRIBED.QUANTITY, ((byte) prescription.getMedicationList().size()))
