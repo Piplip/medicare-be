@@ -29,7 +29,10 @@ public class WebSocketController {
             String staffID = getCookie(request);
             return ResponseEntity.ok(staffService.createPrescription(prescription,staffID));
     }
-    @PostMapping("")
+    @PostMapping("/get/prescription")
+    public ResponseEntity<?> handleBeforeEditPrescribed(@RequestParam("prescribedID") String prescribedID){
+        return ResponseEntity.ok(prescribedID);
+    }
     @MessageMapping("/complete/prescription")
     @SendTo("/pharmacist")
     public ResponseEntity<?> handleCompletePrescribed(@RequestParam("prescribedID") String prescribedID) {
