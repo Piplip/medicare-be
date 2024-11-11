@@ -62,5 +62,8 @@ public class UserController {
     public ResponseEntity<?> getFeedbacks(@RequestParam("email") String email){
         return ResponseEntity.ok(userService.getFeedbacks(email));
     }
-
+    @PostMapping("/chatbot")
+    public ResponseEntity<?> getChatbotMessage(@RequestParam("ChatbotText") String ChatbotText){
+        return ResponseEntity.ok(userService.getChatbotRespone(ChatbotText));
+    }
 }
