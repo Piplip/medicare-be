@@ -1,5 +1,8 @@
 package com.nkd.medicare.service.impl;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.nkd.medicare.domain.Credential;
 import com.nkd.medicare.domain.Session;
 import com.nkd.medicare.enumeration.EventType;
@@ -14,6 +17,7 @@ import com.nkd.medicare.utils.ConfirmationUtils;
 import com.nkd.medicare.utils.SessionUtils;
 import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +25,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Objects;
@@ -36,7 +44,6 @@ public class AccountServiceImpl implements AccountService {
     private final ApplicationEventPublisher publisher;
     private final RedisService redisService;
     private final AuthenticationManager authenticationManager;
-
     @Override
     public void createAccount(Credential credential) {
         if(checkEmailExist(credential.getEmail())){

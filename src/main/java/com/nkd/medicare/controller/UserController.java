@@ -63,7 +63,11 @@ public class UserController {
         return ResponseEntity.ok(userService.getFeedbacks(email));
     }
     @PostMapping("/chatbot")
-    public ResponseEntity<?> getChatbotMessage(@RequestParam("ChatbotText") String ChatbotText){
-        return ResponseEntity.ok(userService.getChatbotRespone(ChatbotText));
+    public ResponseEntity<?> getChatbotMessage(@RequestParam("ChatbotText") String ChatbotText, @RequestParam("Email") String Email) throws InterruptedException {
+        return ResponseEntity.ok(userService.getChatbotRespone(ChatbotText, Email));
+    }
+    @PostMapping("/chatbot/cancel")
+    public ResponseEntity<?> getChatbotMessage(@RequestParam("Email") String Email){
+        return ResponseEntity.ok(userService.deleteHistoryChatbot(Email));
     }
 }

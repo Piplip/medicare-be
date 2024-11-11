@@ -13,5 +13,6 @@ public interface UserService {
     void postFeedback(FeedbackDTO feedbackDTO, String email);
     String getFeedbacks(String email);
     Prescription getPrescripton(String appointmentID);
-    String getChatbotRespone(String text);
+    String getChatbotRespone(String text, String email) throws InterruptedException;
+    String deleteHistoryChatbot(String email);
 }

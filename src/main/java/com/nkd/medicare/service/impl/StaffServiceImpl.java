@@ -129,24 +129,28 @@ public class StaffServiceImpl implements StaffService {
                 if (weekDates.contains(appointment.getDate())){
                     dayOfWeek = appointment.getDate().getDayOfWeek();
                     if (start != null || end != null) {
-                        if (map.containsKey(appointment.getDate().toString())){
-                            map.replace(appointment.getDate().toString(), map.get(appointment.getDate().toString()) + 1);
-                            if(appointment.getStatus().equals(AppointmentStatus.DONE) && map.containsKey(appointment.getDate().toString()+"Done"))  map.replace(appointment.getDate().toString()+"Done", map.get(appointment.getDate().toString()+"Done") + 1);
+                        if (map.containsKey(appointment.getDate().toString())) map.replace(appointment.getDate().toString(), map.get(appointment.getDate().toString()) + 1);
+                        else map.put(appointment.getDate().toString()+"NotShowUp", 1);
+                        if(appointment.getStatus().equals(AppointmentStatus.DONE) && map.containsKey(appointment.getDate().toString()+"Done")) {
+                            if(map.containsKey(appointment.getDate().toString()+"Done")) map.replace(appointment.getDate().toString()+"Done", map.get(appointment.getDate().toString()+"Done") + 1);
                             else map.put(appointment.getDate().toString()+"Done", 1);
-                            if(appointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP) && map.containsKey(appointment.getDate().toString()+"NotShowUp"))  map.replace(appointment.getDate().toString()+"NotShowUp", map.get(appointment.getDate().toString()+"NotShowUp") + 1);
+                        }
+                        else if(appointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP)) {
+                            if(map.containsKey(appointment.getDate().toString()+"NotShowUp")) map.replace(appointment.getDate().toString()+"NotShowUp", map.get(appointment.getDate().toString()+"NotShowUp") + 1);
                             else map.put(appointment.getDate().toString()+"NotShowUp", 1);
                         }
-                        else map.put(appointment.getDate().toString(), 1);
                     } else {
                         dayName = dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH).toLowerCase();
-                        if (map.containsKey(dayName)){
-                            map.replace(dayName, map.get(dayName) + 1);
-                            if(appointment.getStatus().equals(AppointmentStatus.DONE) && map.containsKey(dayName+"Done"))  map.replace(dayName+"Done", map.get(dayName+"Done") + 1);
+                        if (map.containsKey(dayName)) map.replace(dayName, map.get(dayName) + 1);
+                        else map.put(dayName, 1);
+                        if(appointment.getStatus().equals(AppointmentStatus.DONE)) {
+                            if(map.containsKey(dayName+"Done")) map.replace(dayName+"Done", map.get(dayName+"Done") + 1);
                             else map.put(dayName+"Done", 1);
-                            if(appointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP) && map.containsKey(dayName+"NotShowUp"))  map.replace(dayName+"NotShowUp", map.get(dayName+"NotShowUp") + 1);
+                        }
+                        else if(appointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP)){
+                            if(map.containsKey(dayName+"NotShowUp")) map.replace(dayName+"NotShowUp", map.get(dayName+"NotShowUp") + 1);
                             else map.put(dayName+"NotShowUp", 1);
                         }
-                        else map.put(dayName, 1);
                     }
                 }
             }

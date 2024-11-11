@@ -3,6 +3,9 @@ package com.nkd.medicare.service.impl;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.logaritex.ai.api.AssistantApi;
+import com.logaritex.ai.api.Data;
+import com.logaritex.ai.api.FileApi;
 import com.nkd.medicare.domain.AppointmentDTO;
 import com.nkd.medicare.domain.FeedbackDTO;
 import com.nkd.medicare.domain.Prescription;
@@ -19,13 +22,11 @@ import org.jooq.impl.DSL;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -39,8 +40,8 @@ public class UserServiceImpl implements UserService {
     private final ApplicationEventPublisher publisher;
     private final StaffServiceImpl showPrescripton;
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String API_KEY = System.getenv("API_KEY");
-
+    private static final String API_KEY = "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";
+    private Map<String, Data.Thread> threadList= new HashMap<>();
     @Override
     public String findDoctor(String name, String department, String primaryLanguage, String specialization, String gender, String pageSize, String pageNumber) {
         Condition condition = DSL.trueCondition();
@@ -229,37 +230,33 @@ public class UserServiceImpl implements UserService {
         return showPrescripton.showPrescription(appointmentID);
     }
     @Override
-    public String getChatbotRespone(String text) {
-        HttpClient client = HttpClient.newHttpClient();
-
-        JsonObject data = new JsonObject();
-        data.addProperty("model","asst_vG8F6Le0N4mt0DrBQMd0n1JZ");
-        JsonArray messages = new JsonArray();
-        JsonObject message = new JsonObject();
-        message.addProperty("role","user");
-        message.addProperty("content", text);
-        messages.add(message);
-        data.add("messages",messages);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("Authorization", "Bearer " + API_KEY)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(data.toString()))
-                .build();
-        try {
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            JsonObject responseJson = JsonParser.parseString(response.body()).getAsJsonObject();
-            return responseJson
-                    .getAsJsonArray("choices")
-                    .get(0)
-                    .getAsJsonObject()
-                    .getAsJsonObject("message")
-                    .get("content")
-                    .getAsString();
-        }catch (Exception e){
-            e.printStackTrace();
+    public String getChatbotRespone(String text, String email) throws InterruptedException {
+        AssistantApi assistantApi = new AssistantApi(API_KEY);
+        if(!threadList.containsKey(email)) {
+            Data.Thread thread = assistantApi.createThread(new Data.ThreadRequest());
+            threadList.put(email,thread);
         }
-        return "Loi roi kia thang ngu";
+        assistantApi.createMessage(new Data.MessageRequest(
+                        Data.Role.user,
+                        text),
+                threadList.get(email).id());
+        Data.Run run = assistantApi.createRun(
+                threadList.get(email).id(),
+                new Data.RunRequest("asst_vG8F6Le0N4mt0DrBQMd0n1JZ"));
+        while (assistantApi.retrieveRun( threadList.get(email).id(), run.id()).status() != Data.Run.Status.completed) {
+            java.lang.Thread.sleep(500);
+        }
+        Data.DataList<Data.Message> messages = assistantApi.listMessages(
+                new Data.ListRequest(),  threadList.get(email).id());
+        List<Data.Message> assistantMessages = messages.data().stream()
+                .filter(msg -> msg.role() == Data.Role.assistant).toList();
+        return assistantMessages.getLast().content().getLast().text().value();
+    }
+
+    @Override
+    public String deleteHistoryChatbot(String email) {
+        Boolean check = threadList.remove(email, threadList.get(email));
+        if(check) return "Da xoa lich su chatbot";
+        else return "Xoa lich su chatbot that bai";
     }
 }

@@ -23,3 +23,4 @@ RETURN_URL: http://localhost:8080/api/user/payment/vn-pay-callback
 VERSION: 2.1.0
 COMMAND: pay
 ORDER_TYPE: 270000
+
