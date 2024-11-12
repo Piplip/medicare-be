@@ -15,4 +15,5 @@ public interface UserService {
     Prescription getPrescripton(String appointmentID);
     String getChatbotRespone(String text, String email) throws InterruptedException;
     String deleteHistoryChatbot(String email);
+    String showListAppointmentOfDoctor(String date, String staffID);
 }

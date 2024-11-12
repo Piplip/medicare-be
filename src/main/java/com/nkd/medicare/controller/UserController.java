@@ -70,4 +70,8 @@ public class UserController {
     public ResponseEntity<?> getChatbotMessage(@RequestParam("Email") String Email){
         return ResponseEntity.ok(userService.deleteHistoryChatbot(Email));
     }
+    @PostMapping("/appointment/DoctorAppointmentList")
+    public ResponseEntity<?> getDoctorAppointmentList(@RequestParam("date") String date, @RequestParam("staffID") String staffID){
+        return ResponseEntity.ok(userService.showListAppointmentOfDoctor(date, staffID));
+    }
 }

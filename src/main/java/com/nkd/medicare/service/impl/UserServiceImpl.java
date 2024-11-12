@@ -1,5 +1,6 @@
 package com.nkd.medicare.service.impl;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -14,6 +15,7 @@ import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
 import com.nkd.medicare.event.UserEvent;
 import com.nkd.medicare.service.UserService;
+import com.nkd.medicare.tables.records.AppointmentRecord;
 import com.nkd.medicare.tables.records.FeedbackRecord;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
@@ -22,13 +24,12 @@ import org.jooq.impl.DSL;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.time.format.TextStyle;
+import java.util.*;
 
 import static com.nkd.medicare.Tables.*;
 
@@ -252,11 +253,42 @@ public class UserServiceImpl implements UserService {
                 .filter(msg -> msg.role() == Data.Role.assistant).toList();
         return assistantMessages.getLast().content().getLast().text().value();
     }
-
     @Override
     public String deleteHistoryChatbot(String email) {
         Boolean check = threadList.remove(email, threadList.get(email));
         if(check) return "Da xoa lich su chatbot";
         else return "Xoa lich su chatbot that bai";
+    }
+
+    @Override
+    public String showListAppointmentOfDoctor(String date, String staffID) {
+        LocalDate startOfWeek, endOfWeek, appointmentDate;
+        String dayName;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        DayOfWeek dayOfWeek;
+        appointmentDate = LocalDate.parse(date, formatter);
+        dayOfWeek = appointmentDate.getDayOfWeek();
+        startOfWeek = appointmentDate.minusDays(dayOfWeek.getValue() - DayOfWeek.MONDAY.getValue());
+        endOfWeek = startOfWeek.plusDays(6);
+        Boolean[][] result = new Boolean[6][10];
+        List<AppointmentRecord> appointments = context.selectFrom(APPOINTMENT)
+                .where(APPOINTMENT.PHYSICIAN_ID.eq(Integer.parseInt(staffID))
+                        .and(APPOINTMENT.DATE.between(startOfWeek,endOfWeek)))
+                .fetchInto(AppointmentRecord.class);
+        if(!appointments.isEmpty()) {
+            for(AppointmentRecord appointmentRecord : appointments) {
+                if(appointmentRecord.getDate().getDayOfWeek().getValue() == 1) continue;
+                result[appointmentRecord.getDate().getDayOfWeek().getValue()-2][appointmentRecord.getTime().getHour()-8] = true;
+            }
+            for(int i=0; i<=5; i++){
+                for(int j=0; j<=9; j++){
+                    if(result[i][j] == null){
+                        result[i][j] = false;
+                    }
+                }
+            }
+        }
+        Gson gson = new Gson();
+        return gson.toJson(result);
     }
 }

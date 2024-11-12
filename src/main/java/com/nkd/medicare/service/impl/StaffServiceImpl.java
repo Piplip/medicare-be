@@ -218,6 +218,14 @@ public class StaffServiceImpl implements StaffService {
                 String month = eachAppointment.getDate().getMonth().toString();
                 if (map.containsKey(month)) map.replace(month, map.get(month) + 1);
                 else map.put(month, 0);
+                if (eachAppointment.getStatus().equals(AppointmentStatus.DONE)){
+                    if(map.containsKey(month+"Done")) map.replace(month+"Done",map.get(month+"Done")+1);
+                    else map.put(month+"Done",1);
+                }
+                else if(eachAppointment.getStatus().equals(AppointmentStatus.NOT_SHOWED_UP)){
+                    if(map.containsKey(month+"NotShowUp")) map.replace(month+"NotShowUp",map.get(month+"NotShowUp")+1);
+                    else map.put(month+"NotShowUp",1);
+                }
             }
         }
         map.put("totalAppointment", appointments.size() - decreaseAppointment);
