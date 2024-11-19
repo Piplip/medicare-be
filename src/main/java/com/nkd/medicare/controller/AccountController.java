@@ -46,7 +46,6 @@ public class AccountController {
         }
 
         try {
-            System.out.println("Login with credential");
             sendbackSession = accountService.login(credential);
         } catch (ApiException e){
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -57,15 +56,18 @@ public class AccountController {
 
     @PostMapping("/staff/login")
     public ResponseEntity<?> handleStaffLogin(@RequestBody Credential credential){
-        Session successSession = accountService.staffLogin(credential);
+        Session successSession;
+        try{
+            successSession = accountService.staffLogin(credential);
+        }catch (ApiException e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
 
-        HttpCookie cookie = ResponseCookie.from("STAFF-ID", successSession.getUserID().toString())
-                .path("/")
-                .maxAge(3600 * 3)
-                .build();
+        HttpCookie idCookie = ResponseCookie.from("STAFF-ID", successSession.getUserID().toString()).path("/").maxAge(3600 * 3).build();
+        HttpCookie roleCookie = ResponseCookie.from("STAFF-ROLE", successSession.getAccountRole().toString()).path("/").maxAge(3600 * 3).build();
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .header(HttpHeaders.SET_COOKIE, idCookie.toString(), roleCookie.toString())
                 .body(successSession);
     }
 

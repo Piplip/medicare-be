@@ -21,18 +21,23 @@ public class AdminController {
                                       @RequestParam("primary-language") String primaryLanguage, @RequestParam("specialization") String specialization,
                                       @RequestParam("gender") String gender, @RequestParam("page-size") String pageSize,
                                       @RequestParam("page-number") String pageNumber, @RequestParam("staff-type") String staffType,
-                                      @RequestParam("staff-status") String status){
+                                      @RequestParam("staff-status") String status, @RequestParam(value = "staff-id", required = false) String staffID){
+        boolean isAdmin = false;
+        if(staffID != null){
+            isAdmin = adminService.checkAdmin(staffID);
+        }
+        if(!isAdmin){
+            return ResponseEntity.badRequest().body("You are not authorized to view this page");
+        }
         return ResponseEntity.ok(adminService.getStaff(name, department, primaryLanguage, specialization, gender, pageSize, pageNumber, staffType, status));
     }
 
     @PostMapping("/staff/add")
-    public ResponseEntity<?> handleExcel(@RequestParam(value = "url") String url){
-        System.out.println("URL: " + url);
+    public ResponseEntity<?> createStaffFromFile(@RequestParam(value = "url") String fileURL){
         List<StaffExcelData> returnData;
         try{
-            returnData = adminService.readFromExcel(url);
+            returnData = adminService.readFromExcel(fileURL);
         } catch (Exception e){
-            System.out.println(e.getMessage());
             return ResponseEntity.badRequest().body("Error reading excel file");
         }
         return ResponseEntity.ok(returnData);

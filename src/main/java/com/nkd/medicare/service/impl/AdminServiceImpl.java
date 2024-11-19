@@ -39,7 +39,7 @@ public class AdminServiceImpl implements AdminService {
     private final DSLContext context;
     private final PasswordEncoder encoder;
 
-    public String getStaff(String name, String department, String primaryLanguage, String specialization
+    public List<String> getStaff(String name, String department, String primaryLanguage, String specialization
             , String gender, String pageSize, String pageNumber, String staffType, String status) {
         Condition condition = DSL.trueCondition();
 
@@ -73,7 +73,20 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        return context.selectDistinct(STAFF.STAFF_ID, PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER,
+        Integer totalRecord = context.selectCount()
+                .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
+                        .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
+                        .leftJoin(STAFF_SPECIALIZATION).on(STAFF.STAFF_ID.eq(STAFF_SPECIALIZATION.STAFF_ID))
+                        .join(SPECIALIZATION).on(STAFF_SPECIALIZATION.SPECIALIZATION_ID.eq(SPECIALIZATION.SPECIALIZATION_ID))
+                        .join(ACCOUNT).on(ACCOUNT.OWNER_ID.eq(STAFF.STAFF_ID)))
+                .where
+                        ((PERSON.FIRST_NAME.like("%" + name + "%").or(PERSON.LAST_NAME.like("%" + name + "%"))
+                                .or(PERSON.FIRST_NAME.concat(" ").concat(PERSON.LAST_NAME).like("%" + name + "%")))
+                                .and(condition)
+                                .and(ACCOUNT.ACCOUNT_ROLE.ne(AccountAccountRole.USER)))
+                .fetchOneInto(Integer.class);
+
+        String data = context.selectDistinct(STAFF.STAFF_ID, PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER,
                         DEPARTMENT.NAME, SPECIALIZATION.NAME, STAFF.STAFF_TYPE, ACCOUNT.ACCOUNT_EMAIL, STAFF.EMP_STATUS)
                 .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
                         .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
@@ -90,6 +103,8 @@ public class AdminServiceImpl implements AdminService {
                 .offset(((Integer.parseInt(pageNumber) - 1) * Integer.parseInt(pageSize)))
                 .fetch()
                 .formatJSON();
+
+        return List.of(String.valueOf(totalRecord / Integer.parseInt(pageSize)), data);
     }
 
     @Override
@@ -315,6 +330,13 @@ public class AdminServiceImpl implements AdminService {
                 .set(STAFF.STAFF_IMAGE, imageURL)
                 .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)))
                 .execute();
+    }
+
+    @Override
+    public boolean checkAdmin(String staffID) {
+        return !context.selectFrom(STAFF)
+                .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)).and(STAFF.STAFF_TYPE.eq(StaffStaffType.ADMIN)))
+                .fetch().isEmpty();
     }
 
     private ArrayList<?> extractData(Row row) {
