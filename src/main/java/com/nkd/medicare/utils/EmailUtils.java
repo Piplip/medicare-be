@@ -38,7 +38,7 @@ public class EmailUtils {
         return host + "/api/user/token/verify?token=" + token + "&email=" + email;
     }
 
-    public static void handleEmailException(Exception e) {
+    public static void handleEmailException() {
         throw new ApiException("Error sending email");
     }
 
@@ -59,5 +59,26 @@ public class EmailUtils {
                 <p>Medicare Team</p>
             """
                 .formatted(patientName, patientEmail, date, time, reason);
+    }
+
+    public static String getChangePasswordMessage(String OTP) {
+        return """
+                <p>You have requested to change your password.</p>
+                <p style="color:red,font-size:2rem"}>Your OTP is: <strong>%s</strong></p>
+                <p>Please use this OTP to change your password.</p>
+                <p>If you did not request this change, please ignore this email.</p>
+                <p>Regards,</p>
+                <p>Medicare Team</p>
+            """
+                .formatted(OTP);
+    }
+
+    public static String getReminderMessage(String date, String time) {
+        return """
+                <p>This is a reminder for your appointment on %s at %s.</p>
+                <p>Regards,</p>
+                <p>Medicare Team</p>
+            """
+                .formatted(date, time);
     }
 }

@@ -1,27 +1,39 @@
 package com.nkd.medicare.service.impl;
 
+import com.google.gson.*;
+import com.logaritex.ai.api.AssistantApi;
+import com.logaritex.ai.api.Data;
 import com.nkd.medicare.domain.AppointmentDTO;
 import com.nkd.medicare.domain.FeedbackDTO;
+import com.nkd.medicare.domain.MedicationDTO;
+import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.enumeration.EventType;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
 import com.nkd.medicare.event.UserEvent;
+import com.nkd.medicare.exception.ApiException;
 import com.nkd.medicare.service.UserService;
-import com.nkd.medicare.tables.records.FeedbackRecord;
+import com.nkd.medicare.tables.records.*;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
-import java.util.Objects;
+import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.WeekFields;
+import java.util.*;
 
 import static com.nkd.medicare.Tables.*;
+import static java.lang.Thread.*;
 
 @Service
 @RequiredArgsConstructor
@@ -29,9 +41,13 @@ public class UserServiceImpl implements UserService {
 
     private final DSLContext context;
     private final ApplicationEventPublisher publisher;
+    private static final String API_KEY = System.getenv("API_KEY");
+    private final Map<String, Data.Thread> threadList= new HashMap<>();
+    private final PasswordEncoder encoder;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Override
-    public String findDoctor(String name, String department, String primaryLanguage, String specialization, String gender, String pageSize, String pageNumber) {
+    public List<String> findDoctor(String name, String department, String primaryLanguage, String specialization, String gender, String pageSize, String pageNumber) {
         Condition condition = DSL.trueCondition();
 
         if(department != null && !department.isEmpty() && !department.equals("default")){
@@ -47,7 +63,18 @@ public class UserServiceImpl implements UserService {
             condition = condition.and(PERSON.GENDER.eq(gender));
         }
 
-        return context.select(STAFF.STAFF_ID, PERSON.PERSON_ID, STAFF.STAFF_IMAGE, STAFF.DEPARTMENT_ID, PERSON.FIRST_NAME,
+        Integer totalRecord = context.selectCount()
+                .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
+                        .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
+                        .leftJoin(STAFF_SPECIALIZATION).on(STAFF.STAFF_ID.eq(STAFF_SPECIALIZATION.STAFF_ID))
+                        .join(SPECIALIZATION).on(STAFF_SPECIALIZATION.SPECIALIZATION_ID.eq(SPECIALIZATION.SPECIALIZATION_ID)))
+                .where (
+                        (PERSON.FIRST_NAME.like("%" + name + "%").or(PERSON.LAST_NAME.like("%" + name + "%")))
+                                .and(STAFF.STAFF_TYPE.eq(StaffStaffType.DOCTOR))
+                                .and(condition))
+                .fetchOneInto(Integer.class);
+
+        String data = context.select(STAFF.STAFF_ID, PERSON.PERSON_ID, STAFF.STAFF_IMAGE, STAFF.DEPARTMENT_ID, PERSON.FIRST_NAME,
                         PERSON.LAST_NAME, PERSON.PHONE_NUMBER, PERSON.GENDER, PERSON.PRIMARY_LANGUAGE, DEPARTMENT.NAME, DEPARTMENT.LOCATION, SPECIALIZATION.NAME,
                         SPECIALIZATION.DESCRIPTION, STAFF.STAFF_TYPE)
                 .from(STAFF.join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
@@ -62,6 +89,9 @@ public class UserServiceImpl implements UserService {
                 .offset(((Integer.parseInt(pageNumber) - 1) * Integer.parseInt(pageSize)))
                 .fetch()
                 .formatJSON();
+
+        assert totalRecord != null;
+        return List.of(String.valueOf(totalRecord / Integer.parseInt(pageSize)), data);
     }
 
     @Override
@@ -95,15 +125,18 @@ public class UserServiceImpl implements UserService {
 
         Integer appointmentID = context.insertInto(APPOINTMENT, APPOINTMENT.PATIENT_ID, APPOINTMENT.PHYSICIAN_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.DEPARTMENT_ID,
                         APPOINTMENT.REASON, APPOINTMENT.STATUS, APPOINTMENT.PHYSICIAN_REFERRED)
-                .values(patientID, Integer.parseInt(appointmentDTO.getDoctorID()), appointmentDTO.getAppointmentDate().plusDays(1), appointmentDTO.getAppointmentTime(), departmentID,
+                .values(patientID, Integer.parseInt(appointmentDTO.getDoctorID()),
+                        LocalDate.parse(appointmentDTO.getAppointmentDate(), DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                        LocalTime.parse(appointmentDTO.getAppointmentTime(), DateTimeFormatter.ofPattern("HH:mm")), departmentID,
                         appointmentDTO.getReason(), AppointmentStatus.SCHEDULED, (byte) (appointmentDTO.getIsReferral().equals("yes") ? 1 : 0))
                 .returningResult(APPOINTMENT.APPOINTMENT_ID)
                 .fetchOneInto(Integer.class);
 
         if(appointmentDTO.getIsReminder().equals("yes")){
             context.insertInto(APPOINTMENT_REMINDERS, APPOINTMENT_REMINDERS.APPOINTMENT_ID, APPOINTMENT_REMINDERS.TARGET_ADDRESS
-                            , APPOINTMENT_REMINDERS.TARGET_TYPE, APPOINTMENT_REMINDERS.LANGUAGE, APPOINTMENT_REMINDERS.CHANNEL, APPOINTMENT_REMINDERS.STATUS)
-                    .values(appointmentID, appointmentDTO.getPatientEmail(), "patient", "en", "email", "pending")
+                            , APPOINTMENT_REMINDERS.TARGET_TYPE, APPOINTMENT_REMINDERS.LANGUAGE, APPOINTMENT.DATE, APPOINTMENT.TIME)
+                    .values(appointmentID, appointmentDTO.getPatientEmail(), "patient", "en", LocalDate.parse(appointmentDTO.getAppointmentDate(), DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            LocalTime.parse(appointmentDTO.getAppointmentTime(), DateTimeFormatter.ofPattern("HH:mm")))
                     .execute();
         }
 
@@ -114,8 +147,10 @@ public class UserServiceImpl implements UserService {
 
         assert doctorEmail != null;
         Map<?, ?> data = Map.of("patientEmail", appointmentDTO.getPatientEmail(), "doctorEmail", doctorEmail,
-            "patientName", appointmentDTO.getPatientName(), "date", appointmentDTO.getAppointmentDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                , "time", appointmentDTO.getAppointmentTime().format(DateTimeFormatter.ofPattern("HH:ss")), "reason", appointmentDTO.getReason());
+            "patientName", appointmentDTO.getPatientName(),
+                "date", LocalDate.parse(appointmentDTO.getAppointmentDate(), DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                , "time", appointmentDTO.getAppointmentTime(), "reason", appointmentDTO.getReason());
         UserEvent makeAppointmentEvent = UserEvent.builder()
                         .eventType(EventType.MAKE_APPOINTMENT)
                         .data(data)
@@ -124,6 +159,48 @@ public class UserServiceImpl implements UserService {
 
         assert appointmentID != null;
         return appointmentID.toString();
+    }
+
+    @Override
+    public Prescription getAppointmentDetail(String appointmentID) {
+        PrescribedRecord prescribedRecord = context.select().from(PRESCRIBED).join(APPOINTMENT).on(PRESCRIBED.PRESCRIBED_ID.eq(APPOINTMENT.PRESCRIBED_ID))
+                .where(APPOINTMENT.APPOINTMENT_ID.eq(Integer.parseInt(appointmentID)))
+                .fetchOneInto(PrescribedRecord.class);
+
+        if(prescribedRecord == null){
+            throw new ApiException("No such prescription");
+        }
+
+        List<MedicationDTO> medicationDTOList = new ArrayList<>();
+
+        List<PrescribedMedicationRecord> medicationRecords = context.select()
+                .from(PRESCRIBED_MEDICATION.join(PRESCRIBED_MEDICATION_LIST).on(PRESCRIBED_MEDICATION.PRESCRIBED_MEDICATION_ID.eq(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_MEDICATION_ID)))
+                .where(PRESCRIBED_MEDICATION_LIST.PRESCRIBED_ID.eq(prescribedRecord.getPrescribedId()))
+                .fetchInto(PrescribedMedicationRecord.class);
+
+        for (PrescribedMedicationRecord e : medicationRecords) {
+            MedicationDTO medication = new MedicationDTO();
+            medication.setName(context.select(MEDICATION.NAME).from(MEDICATION)
+                    .where(MEDICATION.MEDICATION_ID.eq(e.getMedicationId())).fetchOneInto(String.class));
+            medication.setRoute(e.getRoute());
+            medication.setFrequency(e.getFrequency());
+            medication.setDosage(e.getDosage());
+            medication.setNote(e.getPhysicianNote());
+            medication.setStartDate(e.getStartDate().toString());
+            medication.setEndDate(e.getEndDate().toString());
+            medicationDTOList.add(medication);
+        }
+
+        Prescription prescription = new Prescription();
+        prescription.setAppointmentID(appointmentID);
+        prescription.setStatus(prescribedRecord.getStatus().toString());
+        prescription.setMedicationList(medicationDTOList);
+        prescription.setDiagnosis(prescribedRecord.getDiagnosis());
+        prescription.setPrescribedTime(prescribedRecord.getPrescribedDate().format(DateTimeFormatter.ofPattern("HH:mm dd-MM-yyyy")));
+        prescription.setPrescribedID(prescribedRecord.getPrescribedId().toString());
+        prescription.setDoctorName(prescribedRecord.getPrescribingPhysicianName());
+
+        return prescription;
     }
 
     @Override
@@ -139,7 +216,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public String getAppointmentList(String email, String status, String query, String department, String startDate, String endDate) {
+    public String getAppointmentList(String email, String status, String query, String department, String startDate, String endDate, String page) {
         Condition condition = DSL.trueCondition();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         if(department != null && !department.isEmpty() && !department.equals("default")){
@@ -147,8 +224,6 @@ public class UserServiceImpl implements UserService {
         }
         if(startDate != null && !startDate.equals("none")){
             if(endDate != null && !endDate.equals("none")){
-                System.out.println("Start Date: " + startDate);
-                System.out.println("End Date: " + endDate);
                 condition = condition.and(APPOINTMENT.DATE.between(LocalDate.parse(startDate, formatter), LocalDate.parse(endDate, formatter)));
             }
             else{
@@ -161,21 +236,28 @@ public class UserServiceImpl implements UserService {
             }
         }
         if(status != null && !status.isEmpty() && !status.equals("default")){
-            if(status.equals("SCHEDULED")){
-                condition = condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.SCHEDULED));
-            }
-            else if(status.equals("CONFIRMED")){
-                condition = condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.CONFIRMED));
-            }
-            else if(status.equals("CANCELLED")){
-                condition = condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.CANCELLED));
-            }
+            condition = switch (status) {
+                case "SCHEDULED" -> condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.SCHEDULED));
+                case "CONFIRMED" -> condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.CONFIRMED));
+                case "CANCELLED" -> condition.and(APPOINTMENT.STATUS.eq(AppointmentStatus.CANCELLED));
+                default -> condition;
+            };
         }
         if(query != null && !query.isEmpty()){
             condition = condition.and(PERSON.LAST_NAME.eq(query));
         }
 
-        return context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS, PAYMENT.TRANSACTION_STATUS,
+        int currentPage = page != null ?  Integer.parseInt(page) - 1 : 0;
+
+        Integer totalPage = context.selectCount().from(ACCOUNT.join(APPOINTMENT).on(ACCOUNT.OWNER_ID.eq(APPOINTMENT.PATIENT_ID))
+                        .join(STAFF).on(APPOINTMENT.PHYSICIAN_ID.eq(STAFF.STAFF_ID))
+                        .join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
+                        .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
+                        .join(PAYMENT).on(APPOINTMENT.APPOINTMENT_ID.eq(PAYMENT.APPOINTMENT_ID)))
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email).and(condition))
+                .fetchOneInto(Integer.class);
+
+        String data = context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS, PAYMENT.TRANSACTION_STATUS,
                         DEPARTMENT.NAME, PERSON.FIRST_NAME, PERSON.LAST_NAME)
                 .from(ACCOUNT.join(APPOINTMENT).on(ACCOUNT.OWNER_ID.eq(APPOINTMENT.PATIENT_ID))
                         .join(STAFF).on(APPOINTMENT.PHYSICIAN_ID.eq(STAFF.STAFF_ID))
@@ -183,7 +265,18 @@ public class UserServiceImpl implements UserService {
                         .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
                         .join(PAYMENT).on(APPOINTMENT.APPOINTMENT_ID.eq(PAYMENT.APPOINTMENT_ID)))
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email).and(condition))
+                .orderBy(APPOINTMENT.DATE.desc(), APPOINTMENT.TIME.desc())
+                .limit(10)
+                .offset(currentPage * 10)
                 .fetch().formatJSON();
+
+        List<String> result = new ArrayList<>();
+        assert totalPage != null;
+        result.add(String.valueOf(totalPage / 10));
+        result.add(data);
+
+        Gson gson = new GsonBuilder().create();
+        return gson.toJson(result);
     }
 
     @Override
@@ -213,4 +306,97 @@ public class UserServiceImpl implements UserService {
                 .fetch().formatJSON();
     }
 
+    @Override
+    public String createChatbotThread() {
+        AssistantApi assistantApi = new AssistantApi(API_KEY);
+        String id = UUID.randomUUID().toString();
+        Data.Thread thread = assistantApi.createThread(new Data.ThreadRequest());
+        threadList.put(id, thread);
+
+        return id;
+    }
+
+    @Override
+    public String getChatbotResponse(String text, String userSessionID) throws InterruptedException {
+        AssistantApi assistantApi = new AssistantApi(API_KEY);
+        String temp = threadList.get(userSessionID).id();
+        assistantApi.createMessage(new Data.MessageRequest(Data.Role.user, text), temp);
+        Data.Run run = assistantApi.createRun(temp,
+                new Data.RunRequest("asst_vG8F6Le0N4mt0DrBQMd0n1JZ"));
+        while (assistantApi.retrieveRun( temp, run.id()).status() != Data.Run.Status.completed) {
+            sleep(500);
+        }
+        Data.DataList<Data.Message> messages = assistantApi.listMessages(
+                new Data.ListRequest(),  temp);
+        List<Data.Message> assistantMessages = messages.data().stream()
+                .filter(msg -> msg.role() == Data.Role.assistant).toList();
+        return assistantMessages.getFirst().content().getFirst().text().value();
+    }
+
+    @Override
+    public String showListAppointmentOfDoctor(String date, String staffID) {
+        LocalDate startOfWeek, endOfWeek, appointmentDate;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        DayOfWeek dayOfWeek;
+        appointmentDate = LocalDate.parse(date, formatter);
+        dayOfWeek = appointmentDate.getDayOfWeek();
+        startOfWeek = appointmentDate.minusDays(dayOfWeek.getValue() - DayOfWeek.MONDAY.getValue());
+        endOfWeek = startOfWeek.plusDays(6);
+        Boolean[][] result = new Boolean[6][10];
+        List<AppointmentRecord> appointments = context.selectFrom(APPOINTMENT)
+                .where(APPOINTMENT.PHYSICIAN_ID.eq(Integer.parseInt(staffID))
+                        .and(APPOINTMENT.DATE.between(startOfWeek,endOfWeek)))
+                .fetchInto(AppointmentRecord.class);
+        if(!appointments.isEmpty()) {
+            for(AppointmentRecord appointmentRecord : appointments) {
+                if(appointmentRecord.getDate().getDayOfWeek().getValue() == 1 || appointmentRecord.getTime().getHour() >= 18) continue;
+                result[appointmentRecord.getDate().getDayOfWeek().getValue()-1][appointmentRecord.getTime().getHour() - 8] = true;
+            }
+        }
+        for(int i=0; i<=5; i++){
+            for(int j=0; j<=9; j++){
+                if(result[i][j] == null){
+                    result[i][j] = false;
+                }
+            }
+        }
+        if(appointmentDate.isEqual(LocalDate.now())){
+            for( int i=0; i<=appointmentDate.getDayOfWeek().getValue()-1; i++){
+                for(int j=0; j<=9; j++){
+                    if(LocalDate.now().with(TemporalAdjusters.previousOrSame(WeekFields.of(Locale.of("vi-VN")).getFirstDayOfWeek()))
+                            .isBefore(LocalDate.now())){
+                        if(j<=LocalTime.now().getHour()-8){
+                            result[i][j] = null;
+                        }
+                    }
+                }
+            }
+        }
+        Gson gson = new Gson();
+        return gson.toJson(result);
+    }
+
+    @Override
+    public boolean createChangePasswordRequest(String email, String oldPass) {
+        String actualPass = context.select(ACCOUNT.ACCOUNT_PASSWORD).from(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email)).fetchOneInto(String.class);
+
+        boolean validPass = encoder.matches(oldPass, actualPass);
+        if(!validPass) return false;
+
+        UserEvent event = UserEvent.builder().eventType(EventType.CHANGE_PASSWORD).data(Map.of("patientEmail", email)).build();
+        publisher.publishEvent(event);
+        return true;
+    }
+
+    @Override
+    public boolean verifyChangePasswordRequest(String email, String otp, String newPass) {
+        boolean validOTP = Objects.requireNonNull(redisTemplate.opsForValue().get(otp)).trim().equals(email);
+        if(!validOTP) return false;
+
+        String encodedPass = encoder.encode(newPass);
+        context.update(ACCOUNT).set(ACCOUNT.ACCOUNT_PASSWORD, encodedPass)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email)).execute();
+        return true;
+    }
 }

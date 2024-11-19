@@ -39,4 +39,12 @@ public class ConfirmationUtils {
 
         return newConfirmation;
     }
+
+    public static String generateOTP() {
+        StringBuilder otp = new StringBuilder();
+        for(int i = 0; i < 6; i++){
+            otp.append((int) (Math.random() * 10));
+        }
+        return otp.toString();
+    }
 }

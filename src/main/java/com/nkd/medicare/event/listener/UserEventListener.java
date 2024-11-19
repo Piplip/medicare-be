@@ -29,6 +29,7 @@ public class UserEventListener {
                     , (String) userEvent.getData().get("date")
                     , (String) userEvent.getData().get("time")
                     , (String) userEvent.getData().get("reason"));
+            case CHANGE_PASSWORD -> emailService.sendChangePasswordEmail(((String) userEvent.getData().get("patientEmail")));
         }
     }
 }
