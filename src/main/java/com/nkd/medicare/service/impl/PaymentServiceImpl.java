@@ -22,7 +22,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final DSLContext context;
     private final VNPAYConfig vnPayConfig;
 
-    public String createVnPayPayment(HttpServletRequest request, Integer appointmentID) {
+    public String createVnPayPayment(HttpServletRequest request, Integer appointmentID, String email) {
         Long amount = Integer.parseInt(request.getParameter("amount")) * 100L;
         String bankCode = request.getParameter("bankCode");
         Map<String, String> vnpParamsMap = vnPayConfig.getVNPayConfig(appointmentID+"");
@@ -33,20 +33,30 @@ public class PaymentServiceImpl implements PaymentService {
         }
         vnpParamsMap.put("vnp_IpAddr", VNPayUtils.getIpAddress(request));
 
-        PaymentRecord paymentRecord = new PaymentRecord();
-        paymentRecord.setPaymentDate(LocalDateTime.now());
-        paymentRecord.setPaymentMethod("Card");
-        paymentRecord.setAppointmentId(appointmentID);
-        paymentRecord.setAmount(((short) (amount / 100000)));
-        paymentRecord.setTransactionStatus(PaymentTransactionStatus.PENDING);
-        context.insertInto(PAYMENT).set(paymentRecord).execute();
-
         String queryURL = VNPayUtils.getPaymentURL(vnpParamsMap, true);
         String hashData = VNPayUtils.getPaymentURL(vnpParamsMap, false);
         String vnpSecureHash = VNPayUtils.hmacSHA512(vnPayConfig.getSecretKey(), hashData);
         queryURL += "&vnp_SecureHash=" + vnpSecureHash;
 
-        return vnPayConfig.getVnp_PayUrl() + "?" + queryURL;
+        String payURL = vnPayConfig.getVnp_PayUrl() + "?" + queryURL;
+
+        Integer accountID = context.select(ACCOUNT.ACCOUNT_ID)
+                .from(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                .fetchOne(ACCOUNT.ACCOUNT_ID);
+
+        PaymentRecord paymentRecord = new PaymentRecord();
+        paymentRecord.setPaymentDate(LocalDateTime.now());
+        paymentRecord.setAccountId(accountID);
+        paymentRecord.setPaymentMethod("Card");
+        paymentRecord.setAppointmentId(appointmentID);
+        paymentRecord.setAmount(((short) (amount / 100000)));
+        paymentRecord.setTransactionStatus(PaymentTransactionStatus.PENDING);
+        paymentRecord.setPaymentLink(payURL);
+
+        context.insertInto(PAYMENT).set(paymentRecord).execute();
+
+        return payURL;
     }
 
     public void updateVNPaymentComplete(HttpServletRequest request){
@@ -77,5 +87,23 @@ public class PaymentServiceImpl implements PaymentService {
                 .set(PAYMENT.TRANSACTION_STATUS, PaymentTransactionStatus.FAILED)
                 .where(PAYMENT.APPOINTMENT_ID.eq(Integer.parseInt(appointmentID)))
                 .execute();
+    }
+
+    @Override
+    public List<String> getPaymentHistory(String email, String page) {
+        Integer accountID = context.select(ACCOUNT.ACCOUNT_ID)
+                .from(ACCOUNT)
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email))
+                .fetchOne(ACCOUNT.ACCOUNT_ID);
+
+        var data = context.select(PAYMENT.PAYMENT_ID, PAYMENT.TRANSACTION_STATUS, PAYMENT.PAYMENT_DATE, PAYMENT.AMOUNT, PAYMENT.PAYMENT_LINK, PAYMENT.PAYMENT_METHOD)
+                .from(PAYMENT)
+                .where(PAYMENT.ACCOUNT_ID.eq(accountID))
+                .orderBy(PAYMENT.PAYMENT_DATE.desc())
+                .limit(10)
+                .offset((Integer.parseInt(page) - 1) * 10)
+                .fetch();
+
+        return List.of(String.valueOf(Math.floor((double) data.size() / 10 + 1)), data.formatJSON());
     }
 }

@@ -43,6 +43,11 @@
     </dependencyManagement>
     <dependencies>
         <dependency>
+            <groupId>com.google.cloud.sql</groupId>
+            <artifactId>mysql-socket-factory</artifactId>
+            <version>1.2.2</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
@@ -180,12 +185,7 @@
                             <pojosEqualsAndHashCode>true</pojosEqualsAndHashCode>
                             <javaTimeTypes>true</javaTimeTypes>
                             <fluentSetters>true</fluentSetters>
-                            <!-- Generate the DAO classes -->
-                            <!--                  <daos>true</daos>-->
-                            <!-- Annotate DAOs (and other types) with spring annotations, such as @Repository and @Autowired
-                                 for auto-wiring the Configuration instance, e.g. from Spring Boot's jOOQ starter -->
                             <springAnnotations>true</springAnnotations>
-                            <!-- Generate Spring-specific DAOs containing @Transactional annotations -->
                             <springDao>true</springDao>
                         </generate>
                         <target>

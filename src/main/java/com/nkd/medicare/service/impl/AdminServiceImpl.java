@@ -334,7 +334,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public boolean checkAdmin(String staffID) {
-        return !context.selectFrom(STAFF)
+        return context.selectFrom(STAFF)
                 .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID)).and(STAFF.STAFF_TYPE.eq(StaffStaffType.ADMIN)))
                 .fetch().isEmpty();
     }

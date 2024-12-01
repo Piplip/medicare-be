@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user/payment")
@@ -24,10 +25,10 @@ public class PaymentController {
     private String clientPort;
 
     @GetMapping("/vn-pay")
-    public ResponseEntity<?> pay(HttpServletRequest request, @RequestParam(value = "appointmentID") String appointmentID) {
+    public ResponseEntity<?> pay(HttpServletRequest request, @RequestParam("appointmentID") String appointmentID, @RequestParam("email") String email) {
         String paymentURL;
         try {
-            paymentURL = paymentService.createVnPayPayment(request, Integer.parseInt(appointmentID));
+            paymentURL = paymentService.createVnPayPayment(request, Integer.parseInt(appointmentID), email);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -45,7 +46,13 @@ public class PaymentController {
                     .location(URI.create("http://localhost:" + clientPort + "/payment/success")).build();
         } else {
             paymentService.updateVnPaymentFailed(request);
-            return ResponseEntity.badRequest().body("FAILED");
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create("http://localhost:" + clientPort + "/payment/failed")).build();
         }
+    }
+
+    @GetMapping("/payment-history")
+    public List<String> getPaymentHistory(@RequestParam("email") String email, @RequestParam(value = "page", required = false, defaultValue = "1") String page) {
+        return paymentService.getPaymentHistory(email, page);
     }
 }

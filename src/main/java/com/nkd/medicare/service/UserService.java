@@ -17,7 +17,9 @@ public interface UserService {
     String getFeedbacks(String email);
     String createChatbotThread();
     String getChatbotResponse(String text, String threadID) throws InterruptedException;
-    String showListAppointmentOfDoctor(String date, String staffID);
+    String getDoctorSchedule(String date, String staffID);
     boolean createChangePasswordRequest(String email, String oldPass);
     boolean verifyChangePasswordRequest(String email, String otp, String newPass);
+    void changeProfile(String phone, String subPhone, String sessionID);
+    String getDoctorStatistic(String staffID);
 }
