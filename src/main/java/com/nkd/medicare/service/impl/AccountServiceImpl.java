@@ -57,16 +57,6 @@ public class AccountServiceImpl implements AccountService {
         generateAndSendConfirmation(accountID, credential.getEmail(), EventType.REGISTRATION);
     }
 
-    @Override
-    public void deleteAccount(String username) {
-
-    }
-
-    @Override
-    public void updatePassword(String email, String password) {
-
-    }
-
     @Transactional(noRollbackFor = ApiException.class)
     @Override
     public String activateAccount(String token, String email) {
@@ -139,6 +129,7 @@ public class AccountServiceImpl implements AccountService {
             throw new ApiException("Account is not activated! Please head to your gmail to activate your account");
         }
         if(!encoder.matches(credential.getPassword(), accountRecord.getAccountPassword())){
+            System.out.println("Password: " + credential.getPassword() + " - " + accountRecord.getAccountPassword());
             throw new ApiException("Invalid password for account: " + credential.getEmail());
         }
 
@@ -294,5 +285,3 @@ public class AccountServiceImpl implements AccountService {
         publisher.publishEvent(signUpEvent);
     }
 }
-
-// TODO : Logout

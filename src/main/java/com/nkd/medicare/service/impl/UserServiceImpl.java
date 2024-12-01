@@ -8,6 +8,7 @@ import com.nkd.medicare.domain.FeedbackDTO;
 import com.nkd.medicare.domain.MedicationDTO;
 import com.nkd.medicare.domain.Prescription;
 import com.nkd.medicare.enumeration.EventType;
+import com.nkd.medicare.enums.AccountAccountRole;
 import com.nkd.medicare.enums.AppointmentStatus;
 import com.nkd.medicare.enums.StaffStaffType;
 import com.nkd.medicare.event.UserEvent;
@@ -23,10 +24,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.WeekFields;
@@ -39,9 +37,10 @@ import static java.lang.Thread.*;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private static final String API_KEY = System.getenv("API_KEY");
+
     private final DSLContext context;
     private final ApplicationEventPublisher publisher;
-    private static final String API_KEY = System.getenv("API_KEY");
     private final Map<String, Data.Thread> threadList= new HashMap<>();
     private final PasswordEncoder encoder;
     private final RedisTemplate<String, String> redisTemplate;
@@ -205,7 +204,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String getUserProfile(String email) {
-        return Objects.requireNonNull(context.select(PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.DATE_OF_BIRTH, PERSON.PHONE_NUMBER,
+        return Objects.requireNonNull(context.select(PERSON.FIRST_NAME, PERSON.LAST_NAME, PERSON.DATE_OF_BIRTH, PERSON.PHONE_NUMBER, PERSON.SEC_PHONE_NUMBER,
                                 ADDRESS.HOUSE_NUMBER, ADDRESS.STREET, ADDRESS.DISTRICT, ADDRESS.CITY, ACCOUNT.ACCOUNT_EMAIL)
                         .from(ACCOUNT.join(PATIENT).on(ACCOUNT.OWNER_ID.eq(PATIENT.PATIENT_ID))
                                 .join(PERSON).on(PATIENT.PERSON_ID.eq(PERSON.PERSON_ID))
@@ -257,13 +256,14 @@ public class UserServiceImpl implements UserService {
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email).and(condition))
                 .fetchOneInto(Integer.class);
 
-        String data = context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS, PAYMENT.TRANSACTION_STATUS,
+        String data = context.select(APPOINTMENT.APPOINTMENT_ID, APPOINTMENT.DATE, APPOINTMENT.TIME, APPOINTMENT.REASON, APPOINTMENT.STATUS,
                         DEPARTMENT.NAME, PERSON.FIRST_NAME, PERSON.LAST_NAME)
                 .from(ACCOUNT.join(APPOINTMENT).on(ACCOUNT.OWNER_ID.eq(APPOINTMENT.PATIENT_ID))
                         .join(STAFF).on(APPOINTMENT.PHYSICIAN_ID.eq(STAFF.STAFF_ID))
                         .join(PERSON).on(STAFF.PERSON_ID.eq(PERSON.PERSON_ID))
                         .join(DEPARTMENT).on(STAFF.DEPARTMENT_ID.eq(DEPARTMENT.DEPARTMENT_ID))
-                        .join(PAYMENT).on(APPOINTMENT.APPOINTMENT_ID.eq(PAYMENT.APPOINTMENT_ID)))
+//                        .join(PAYMENT).on(APPOINTMENT.APPOINTMENT_ID.eq(PAYMENT.APPOINTMENT_ID)))
+                )
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email).and(condition))
                 .orderBy(APPOINTMENT.DATE.desc(), APPOINTMENT.TIME.desc())
                 .limit(10)
@@ -334,7 +334,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public String showListAppointmentOfDoctor(String date, String staffID) {
+    public String getDoctorSchedule(String date, String staffID) {
         LocalDate startOfWeek, endOfWeek, appointmentDate;
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
         DayOfWeek dayOfWeek;
@@ -365,9 +365,11 @@ public class UserServiceImpl implements UserService {
                 for(int j=0; j<=9; j++){
                     if(LocalDate.now().with(TemporalAdjusters.previousOrSame(WeekFields.of(Locale.of("vi-VN")).getFirstDayOfWeek()))
                             .isBefore(LocalDate.now())){
-                        if(j<=LocalTime.now().getHour()-8){
+                        if(j<=LocalTime.now().getHour()-8 && i == appointmentDate.getDayOfWeek().getValue()-1){
                             result[i][j] = null;
                         }
+                        else if(i < appointmentDate.getDayOfWeek().getValue()-1)
+                            result[i][j] = null;
                     }
                 }
             }
@@ -398,5 +400,42 @@ public class UserServiceImpl implements UserService {
         context.update(ACCOUNT).set(ACCOUNT.ACCOUNT_PASSWORD, encodedPass)
                 .where(ACCOUNT.ACCOUNT_EMAIL.eq(email)).execute();
         return true;
+    }
+
+    @Override
+    public void changeProfile(String phone, String subPhone, String email) {
+        Integer personID = context.selectFrom(ACCOUNT.join(PATIENT).on(ACCOUNT.OWNER_ID.eq(PATIENT.PATIENT_ID)))
+                .where(ACCOUNT.ACCOUNT_EMAIL.eq(email).and(ACCOUNT.ACCOUNT_ROLE.eq(AccountAccountRole.USER))).fetch(PATIENT.PERSON_ID).getFirst();
+
+        context.update(PERSON)
+                .set(PERSON.PHONE_NUMBER, phone)
+                .set(PERSON.SEC_PHONE_NUMBER, subPhone)
+                .where(PERSON.PERSON_ID.eq(personID))
+                .execute();
+    }
+
+    @Override
+    public String getDoctorStatistic(String staffID) {
+        System.out.println("Staff ID " + staffID);
+        Map<String, String> doctorStatistic = new HashMap<>();
+
+        int totalAppointment = context.fetchCount(APPOINTMENT, APPOINTMENT.PHYSICIAN_ID.eq(Integer.parseInt(staffID)));
+        doctorStatistic.put("totalAppointment", Integer.toString(totalAppointment));
+
+        int totalPatient = context.selectCount().from(APPOINTMENT)
+                .where(APPOINTMENT.PHYSICIAN_ID.eq(Integer.parseInt(staffID)))
+                .groupBy(APPOINTMENT.PATIENT_ID).execute();
+        doctorStatistic.put("totalPatient", Integer.toString(totalPatient));
+
+        LocalDate empStartDate = context.select(STAFF.EMP_START_DATE).from(STAFF)
+                .where(STAFF.STAFF_ID.eq(Integer.parseInt(staffID))).fetchOneInto(LocalDate.class);
+        assert empStartDate != null;
+        // calculate date and month
+        Period period = Period.between(empStartDate, LocalDate.now());
+        int monthDifference = period.getYears() * 12 + period.getMonths();
+        doctorStatistic.put("workYears", monthDifference / 12 + "-" + monthDifference % 12);
+
+        Gson gson = new Gson();
+        return gson.toJson(doctorStatistic);
     }
 }

@@ -87,7 +87,7 @@ public class UserController {
     }
 
     @GetMapping("/chatbot")
-    public String getChatbotMessage(@RequestParam("message") String message, HttpServletRequest request) throws InterruptedException {
+    public String getChatbotMessage(@RequestParam("message") String message, HttpServletRequest request) {
         String returnMsg;
         Cookie[] cookies = request.getCookies();
         String id = null;
@@ -109,8 +109,8 @@ public class UserController {
     }
 
     @GetMapping("/appointment/doctor/schedule")
-    public ResponseEntity<?> getDoctorAppointmentList(@RequestParam("date") String date, @RequestParam("staffID") String staffID){
-        return ResponseEntity.ok(userService.showListAppointmentOfDoctor(date, staffID));
+    public ResponseEntity<?> getDoctorSchedule(@RequestParam("date") String date, @RequestParam("staffID") String staffID){
+        return ResponseEntity.ok(userService.getDoctorSchedule(date, staffID));
     }
 
     @PostMapping("/change-password/make")
@@ -129,5 +129,17 @@ public class UserController {
         if(goNextStep)
             return ResponseEntity.ok("OK");
         else return ResponseEntity.badRequest().body("OTP is incorrect");
+    }
+
+    @PostMapping("/change-profile")
+    public ResponseEntity<?> changeProfile(@RequestParam("phone") String phone, @RequestParam("subPhone") String subPhone,
+                                           @RequestParam("email") String email){
+        userService.changeProfile(phone, subPhone, email);
+        return ResponseEntity.ok("Profile updated successfully");
+    }
+
+    @GetMapping("/doctor/{staffID}/statistic")
+    public String getDoctorStatistic(@PathVariable("staffID") String staffID){
+        return userService.getDoctorStatistic(staffID);
     }
 }

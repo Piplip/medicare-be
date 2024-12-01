@@ -26,7 +26,7 @@ public class AdminController {
         if(staffID != null){
             isAdmin = adminService.checkAdmin(staffID);
         }
-        if(!isAdmin){
+        if(isAdmin){
             return ResponseEntity.badRequest().body("You are not authorized to view this page");
         }
         return ResponseEntity.ok(adminService.getStaff(name, department, primaryLanguage, specialization, gender, pageSize, pageNumber, staffType, status));
